@@ -105,55 +105,50 @@ export default function FinanceBudget({
   }, [startDate, dueDate, installments, amountInput, paymentDueDay, amountMode]);
 
   const handleAiOptimizeTimeline = async () => {
-    const rawAmtEachPeriod = parseInt(amountInput.replace(/\D/g, "")) || 0;
-    if (rawAmtEachPeriod <= 0 || !partner.trim()) {
-      toast.error("Vui lòng nhập tên đối tác và số tiền mỗi kỳ trước!");
+    const raw = parseInt(amountInput.replace(/\D/g, "")) || 0;
+    if (raw <= 0 || !partner.trim()) {
+      toast.error("Vui lòng nhập tên đối tác và số tiền trước!");
       return;
     }
-    
-    setIsAiLoading(true);
-    const aiPrompt = `Hãy tính toán và đề xuất một lộ trình thanh toán nợ chi tiết cho đối tác '${partner}' với số tiền mỗi kỳ là ${rawAmtEachPeriod} VNĐ, tổng cộng ${installments} kỳ, bắt đầu từ ngày ${startDate} và kết thúc vào ngày đáo hạn ${dueDate}.
-Hãy phân bổ ngày thanh toán một cách hợp lý và chính xác nhất.
-YÊU CẦU QUAN TRỌNG: Các kỳ thanh toán phải trước ngày ${paymentDueDay} hàng tháng (ví dụ: ngày ${paymentDueDay} của tháng).
-Chỉ trả về duy nhất một mảng JSON hợp lệ theo cấu trúc mẫu sau, không được chứa bất kỳ từ ngữ hay định dạng markdown nào khác ngoài chuỗi JSON:
-[
-  { "date": "YYYY-MM-DD", "amount": ${rawAmtEachPeriod}, "completed": false }
-]`;
 
+    const amtPerPeriod = amountMode === 'total'
+      ? Math.round(raw / installments)
+      : raw;
+
+    if (amtPerPeriod <= 0) {
+      toast.error("Số tiền mỗi kỳ phải lớn hơn 0!");
+      return;
+    }
+
+    setIsAiLoading(true);
     try {
-      const response = await fetch("/.netlify/functions/gemini-advisor", {
+      const response = await fetch("/.netlify/functions/gemini-timeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transactions: [],
-          budgets: [],
-          debts: [],
-          savings: [],
-          promptType: "custom",
-          customMessage: aiPrompt
+          partner,
+          amtPerPeriod,
+          installments,
+          startDate,
+          dueDate,
+          paymentDueDay
         })
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Lỗi kết nối AI");
-      
-      let cleanedText = data.text.trim();
-      if (cleanedText.startsWith("```")) {
-        cleanedText = cleanedText.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
-      }
-      
-      const parsedTimeline = JSON.parse(cleanedText);
+
+      const parsedTimeline = data.timeline;
       if (Array.isArray(parsedTimeline) && parsedTimeline.length > 0) {
         setPreviewTimeline(parsedTimeline);
         toast.success("Đã tối ưu lộ trình bằng Cố vấn AI!");
       } else {
-        throw new Error("Dữ liệu phản hồi từ AI không đúng định dạng mảng.");
+        throw new Error("Phản hồi AI không hợp lệ");
       }
     } catch (err: any) {
-      console.error(err);
-      toast.error("Không thể sử dụng AI lúc này. Đã tự động sử dụng lộ trình mặc định.");
-      // Fallback
-      setPreviewTimeline(generateDefaultTimeline(startDate, dueDate, installments, rawAmtEachPeriod, parseInt(paymentDueDay) || 5));
+      console.error("AI timeline error:", err);
+      toast.error("AI không phản hồi. Đã dùng lộ trình mặc định.");
+      setPreviewTimeline(generateDefaultTimeline(startDate, dueDate, installments, amtPerPeriod, parseInt(paymentDueDay) || 5));
     } finally {
       setIsAiLoading(false);
     }
