@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   PiggyBank, 
   CheckCircle2, 
@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Trash2,
   X,
-  DollarSign
+  DollarSign,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
@@ -50,11 +52,112 @@ export default function FinanceBudget({
   const [debtType, setDebtType] = useState<'payable' | 'receivable'>('payable');
   const [partner, setPartner] = useState("");
   const [amountInput, setAmountInput] = useState("");
+  const [amountMode, setAmountMode] = useState<'total' | 'perPeriod'>('perPeriod');
   const [interest, setInterest] = useState("0");
+  const [startDate, setStartDate] = useState("2026-07-15");
   const [dueDate, setDueDate] = useState("2026-08-15");
+  const [paymentDueDay, setPaymentDueDay] = useState("5");
+  const [previewTimeline, setPreviewTimeline] = useState<{ date: string; amount: number; completed: boolean }[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [installments, setInstallments] = useState(1);
   const [swipedDebtId, setSwipedDebtId] = useState<string | null>(null);
   const [interestExplanationVisible, setInterestExplanationVisible] = useState(false);
+
+  const generateDefaultTimeline = (startStr: string, _dueStr: string, totalInst: number, amtPerInst: number, dueDayNum: number) => {
+    const timeline = [];
+    const start = new Date(startStr);
+    const baseYear = start.getFullYear();
+    const baseMonth = start.getMonth(); // 0-indexed
+
+    for (let i = 0; i < totalInst; i++) {
+      // Tính tháng/năm cho kỳ thứ i
+      const targetMonth = baseMonth + i;
+      const year = baseYear + Math.floor(targetMonth / 12);
+      const month = targetMonth % 12;
+
+      // Lấy ngày max của tháng đó để tránh overflow (vd: ngày 31 ở tháng 2)
+      const maxDay = new Date(year, month + 1, 0).getDate();
+      const day = Math.min(dueDayNum, maxDay);
+
+      // Dùng UTC để tránh timezone shift khi toISOString
+      const instDate = new Date(Date.UTC(year, month, day));
+
+      timeline.push({
+        date: instDate.toISOString().split("T")[0],
+        amount: amtPerInst,
+        completed: false
+      });
+    }
+    return timeline;
+  };
+
+  useEffect(() => {
+    const raw = parseInt(amountInput.replace(/\D/g, "")) || 0;
+    const dueDayNum = parseInt(paymentDueDay) || 5;
+    const amtPerPeriod = amountMode === 'total'
+      ? (installments > 0 ? Math.round(raw / installments) : 0)
+      : raw;
+    if (amtPerPeriod > 0) {
+      setPreviewTimeline(generateDefaultTimeline(startDate, dueDate, installments, amtPerPeriod, dueDayNum));
+    } else {
+      setPreviewTimeline([]);
+    }
+  }, [startDate, dueDate, installments, amountInput, paymentDueDay, amountMode]);
+
+  const handleAiOptimizeTimeline = async () => {
+    const rawAmtEachPeriod = parseInt(amountInput.replace(/\D/g, "")) || 0;
+    if (rawAmtEachPeriod <= 0 || !partner.trim()) {
+      toast.error("Vui lòng nhập tên đối tác và số tiền mỗi kỳ trước!");
+      return;
+    }
+    
+    setIsAiLoading(true);
+    const aiPrompt = `Hãy tính toán và đề xuất một lộ trình thanh toán nợ chi tiết cho đối tác '${partner}' với số tiền mỗi kỳ là ${rawAmtEachPeriod} VNĐ, tổng cộng ${installments} kỳ, bắt đầu từ ngày ${startDate} và kết thúc vào ngày đáo hạn ${dueDate}.
+Hãy phân bổ ngày thanh toán một cách hợp lý và chính xác nhất.
+YÊU CẦU QUAN TRỌNG: Các kỳ thanh toán phải trước ngày ${paymentDueDay} hàng tháng (ví dụ: ngày ${paymentDueDay} của tháng).
+Chỉ trả về duy nhất một mảng JSON hợp lệ theo cấu trúc mẫu sau, không được chứa bất kỳ từ ngữ hay định dạng markdown nào khác ngoài chuỗi JSON:
+[
+  { "date": "YYYY-MM-DD", "amount": ${rawAmtEachPeriod}, "completed": false }
+]`;
+
+    try {
+      const response = await fetch("/.netlify/functions/gemini-advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactions: [],
+          budgets: [],
+          debts: [],
+          savings: [],
+          promptType: "custom",
+          customMessage: aiPrompt
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Lỗi kết nối AI");
+      
+      let cleanedText = data.text.trim();
+      if (cleanedText.startsWith("```")) {
+        cleanedText = cleanedText.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+      
+      const parsedTimeline = JSON.parse(cleanedText);
+      if (Array.isArray(parsedTimeline) && parsedTimeline.length > 0) {
+        setPreviewTimeline(parsedTimeline);
+        toast.success("Đã tối ưu lộ trình bằng Cố vấn AI!");
+      } else {
+        throw new Error("Dữ liệu phản hồi từ AI không đúng định dạng mảng.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Không thể sử dụng AI lúc này. Đã tự động sử dụng lộ trình mặc định.");
+      // Fallback
+      setPreviewTimeline(generateDefaultTimeline(startDate, dueDate, installments, rawAmtEachPeriod, parseInt(paymentDueDay) || 5));
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   // Modal states
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -79,42 +182,36 @@ export default function FinanceBudget({
   const handleCreateDebtSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!partner.trim()) return;
-    const rawAmt = parseInt(amountInput.replace(/\D/g, "")) || 0;
-    if (rawAmt <= 0) return;
+    const raw = parseInt(amountInput.replace(/\D/g, "")) || 0;
+    if (raw <= 0) return;
 
-    const interestVal = parseFloat(interest) || 0;
+    const totalAmt = amountMode === 'total' ? raw : raw * installments;
+    const amtPerPeriod = amountMode === 'total'
+      ? Math.round(raw / installments)
+      : raw;
+    const interestVal = 0;
 
-    // Auto-generate timelines based on installments
-    const timelineItems = [];
-    const baseInstallmentAmt = Math.round(rawAmt / installments);
-    const currentDate = new Date("2026-07-15"); // Live app state base date
-
-    for (let i = 0; i < installments; i++) {
-      // Calculate installment date (increment months)
-      const instDate = new Date(currentDate);
-      instDate.setMonth(currentDate.getMonth() + i);
-      
-      timelineItems.push({
-        date: instDate.toISOString().split("T")[0],
-        amount: baseInstallmentAmt,
-        completed: false
-      });
-    }
+    // Tái tạo timeline cuối cùng từ amtPerPeriod thực tế (phòng trường hợp AI chưa chạy)
+    const dueDayNum = parseInt(paymentDueDay) || 5;
+    const finalTimeline = previewTimeline.length === installments
+      ? previewTimeline.map(t => ({ ...t, amount: amtPerPeriod }))
+      : generateDefaultTimeline(startDate, dueDate, installments, amtPerPeriod, dueDayNum);
 
     onAddDebt({
       type: debtType,
       partner,
-      amount: rawAmt,
+      amount: totalAmt,
       paid: 0,
       interestRate: interestVal,
       dueDate,
-      timeline: timelineItems
+      timeline: finalTimeline
     });
 
     // Reset fields and close form
     setPartner("");
     setAmountInput("");
     setInterest("0");
+    setStartDate("2026-07-15");
     setDueDate("2026-08-15");
     setInstallments(1);
     setShowAddForm(false);
@@ -355,20 +452,66 @@ export default function FinanceBudget({
               />
             </div>
 
-            {/* Amount and Installments */}
+            {/* Amount Mode Toggle + Amount Input + Installments */}
+            {/* Mode selector */}
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAmountMode('perPeriod')}
+                className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg transition-all ${
+                  amountMode === 'perPeriod'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500'
+                }`}
+              >
+                Nhập tiền mỗi kỳ
+              </button>
+              <button
+                type="button"
+                onClick={() => setAmountMode('total')}
+                className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg transition-all ${
+                  amountMode === 'total'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500'
+                }`}
+              >
+                Nhập tổng nợ
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block mb-1">
-                  Số tiền (VND)
+                  {amountMode === 'total' ? 'Tổng số nợ (VND)' : 'Số tiền mỗi kỳ (VND)'}
                 </label>
                 <input
                   type="text"
                   required
                   value={amountInput}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  placeholder="VD: 15.000.000"
+                  placeholder={amountMode === 'total' ? 'VD: 15.000.000' : 'VD: 5.000.000'}
                   className="w-full bg-slate-50 border border-slate-100 text-xs font-bold text-slate-800 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-slate-300 transition-all"
                 />
+                {/* Helper: derived value */}
+                {amountInput && installments > 1 && (() => {
+                  const raw = parseInt(amountInput.replace(/\D/g, '')) || 0;
+                  if (!raw) return null;
+                  if (amountMode === 'total') {
+                    const perPeriod = Math.round(raw / installments);
+                    return (
+                      <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">
+                        → Mỗi kỳ: <b className="text-slate-600">{new Intl.NumberFormat('vi-VN').format(perPeriod)}đ</b>
+                      </span>
+                    );
+                  } else {
+                    const total = raw * installments;
+                    return (
+                      <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">
+                        → Tổng nợ: <b className="text-slate-600">{new Intl.NumberFormat('vi-VN').format(total)}đ</b>
+                      </span>
+                    );
+                  }
+                })()}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block mb-1">
@@ -380,46 +523,28 @@ export default function FinanceBudget({
                   className="w-full bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-800 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-slate-300 transition-all"
                 >
                   <option value={1}>Thanh toán 1 lần</option>
-                  <option value={3}>Chia 3 đợt (3 tháng)</option>
-                  <option value={6}>Chia 6 đợt (6 tháng)</option>
-                  <option value={12}>Chia 12 đợt (12 tháng)</option>
+                  <option value={2}>Chia 2 đợt</option>
+                  <option value={3}>Chia 3 đợt</option>
+                  <option value={4}>Chia 4 đợt</option>
+                  <option value={6}>Chia 6 đợt</option>
+                  <option value={12}>Chia 12 đợt</option>
                 </select>
               </div>
             </div>
 
-            {/* Interest Rate & Due Date */}
+            {/* Start Date & Due Date */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
+              <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block mb-1">
-                  Lãi suất (%/tháng)
+                  Ngày bắt đầu nợ
                 </label>
-                <motion.input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={interest}
-                  onChange={(e) => setInterest(e.target.value)}
-                  onFocus={() => setInterestExplanationVisible(true)}
-                  onBlur={() => setTimeout(() => setInterestExplanationVisible(false), 200)}
-                  whileFocus={{ scale: 1.03 }}
-                  className="w-full bg-slate-50 border border-slate-100 text-xs font-bold text-slate-800 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-slate-900 transition-all"
+                <input
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-800 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-slate-300 transition-all"
                 />
-                
-                {/* Custom click popup message for interest explanation */}
-                <AnimatePresence>
-                  {interestExplanationVisible && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                      className="absolute left-0 right-0 -top-24 z-50 bg-slate-950 text-white p-3 rounded-2xl shadow-xl text-[10px] leading-relaxed border border-white/10"
-                    >
-                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-2.5 h-2.5 bg-slate-950 rotate-45" />
-                      <span className="font-extrabold text-amber-400 block mb-0.5">💡 Gợi ý lãi suất:</span>
-                      Đặt <b className="text-white">0%</b> nếu là nợ thân quen. Đặt <b className="text-white">0.5% - 1.5%</b> để mô phỏng chính xác dư nợ giảm dần có tính lãi.
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block mb-1">
@@ -434,6 +559,62 @@ export default function FinanceBudget({
                 />
               </div>
             </div>
+
+            {/* Payment Due Day of Month */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block mb-1">
+                Thanh toán trước ngày (Hàng tháng)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                required
+                value={paymentDueDay}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(31, parseInt(e.target.value) || 1));
+                  setPaymentDueDay(val.toString());
+                }}
+                className="w-full bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-800 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-slate-300 transition-all"
+                placeholder="Ví dụ: 4"
+              />
+            </div>
+
+            {/* Timeline Preview */}
+            {previewTimeline.length > 0 && (
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Xem trước lộ trình ({previewTimeline.length} kỳ)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAiOptimizeTimeline}
+                    disabled={isAiLoading}
+                    className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors"
+                  >
+                    {isAiLoading ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    🤖 AI tối ưu lộ trình
+                  </button>
+                </div>
+                
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {previewTimeline.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-[11px] bg-white border border-slate-100 rounded-lg p-2">
+                      <span className="font-semibold text-slate-600">Đợt {idx + 1}</span>
+                      <span className="font-bold text-slate-800">{formatVND(item.amount)}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {new Date(item.date).toLocaleDateString("vi-VN", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action buttons */}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
