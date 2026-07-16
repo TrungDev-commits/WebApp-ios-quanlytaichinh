@@ -15,18 +15,23 @@ import {
   Loader2,
   RefreshCw,
   Plus,
-  Wallet
+  Wallet,
+  Settings2
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
-import { Transaction } from "../types";
+import { Transaction, Category } from "../types";
+import { iconMap } from "../lib/iconMap";
 
 interface QuickAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  categories: Category[];
+  onOpenCategoryManager: () => void;
 }
 
-export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: QuickAddModalProps) {
+export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categories: propCategories, onOpenCategoryManager }: QuickAddModalProps) {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amountStr, setAmountStr] = useState("");
   const [description, setDescription] = useState("");
@@ -39,14 +44,13 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const categories = [
-    { name: "Ăn uống", icon: Utensils, color: "bg-red-50 text-red-600 hover:bg-red-100/80 border-red-100" },
-    { name: "Di chuyển", icon: Car, color: "bg-amber-50 text-amber-600 hover:bg-amber-100/80 border-amber-100" },
-    { name: "Mua sắm", icon: ShoppingBag, color: "bg-blue-50 text-blue-600 hover:bg-blue-100/80 border-blue-100" },
-    { name: "Hóa đơn", icon: Zap, color: "bg-teal-50 text-teal-600 hover:bg-teal-100/80 border-teal-100" },
-    { name: "Lương", icon: Banknote, color: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100/80 border-emerald-100" },
-    { name: "Khác", icon: Tag, color: "bg-slate-50 text-slate-600 hover:bg-slate-100/80 border-slate-100" },
-  ];
+  const categories = propCategories.length > 0
+    ? propCategories.sort((a, b) => a.order - b.order).map(cat => ({
+        name: cat.name,
+        icon: iconMap[cat.icon] || Tag,
+        color: cat.color,
+      }))
+    : [];
 
   const wallets = [
     { name: "Ngân hàng", icon: CreditCard },
@@ -58,7 +62,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
     e.preventDefault();
     const amountNum = parseFloat(amountStr.replace(/[^0-9]/g, ""));
     if (!amountNum || amountNum <= 0) {
-      alert("Vui lòng nhập số tiền hợp lệ!");
+      toast.error("Vui lòng nhập số tiền hợp lệ!");
       return;
     }
 
@@ -109,7 +113,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
       }
     } catch (err: any) {
       console.error(err);
-      alert("Quá trình quét hóa đơn gặp lỗi: " + err.message);
+      toast.error(err.message);
     } finally {
       setIsScanning(false);
     }
@@ -230,11 +234,23 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
                 />
               </div>
 
-              {/* CATEGORY GRID LIST (NO DROPDOWN) */}
+              {/* CATEGORY GRID LIST */}
               <div className="space-y-2.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Chọn danh mục</label>
                 <div className="grid grid-cols-3 gap-2.5">
                   {categories.map((cat) => {
+                    const colorMap: Record<string, string> = {
+                      red: 'bg-red-50 text-red-600 hover:bg-red-100/80 border-red-100',
+                      amber: 'bg-amber-50 text-amber-600 hover:bg-amber-100/80 border-amber-100',
+                      blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100/80 border-blue-100',
+                      teal: 'bg-teal-50 text-teal-600 hover:bg-teal-100/80 border-teal-100',
+                      emerald: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100/80 border-emerald-100',
+                      slate: 'bg-slate-50 text-slate-600 hover:bg-slate-100/80 border-slate-100',
+                      indigo: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100/80 border-indigo-100',
+                      rose: 'bg-rose-50 text-rose-600 hover:bg-rose-100/80 border-rose-100',
+                      purple: 'bg-purple-50 text-purple-600 hover:bg-purple-100/80 border-purple-100',
+                      orange: 'bg-orange-50 text-orange-600 hover:bg-orange-100/80 border-orange-100',
+                    };
                     const CatIcon = cat.icon;
                     const isSelected = category === cat.name;
 
@@ -248,7 +264,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
                         className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all duration-300 cursor-pointer ${
                           isSelected
                             ? "bg-slate-900 border-slate-900 text-white shadow-md scale-105"
-                            : cat.color
+                            : colorMap[cat.color] || colorMap.slate
                         }`}
                       >
                         <CatIcon className="w-5 h-5" />
@@ -256,6 +272,16 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction }: Qui
                       </motion.button>
                     );
                   })}
+                  {/* Plus button to add new category */}
+                  <motion.button
+                    type="button"
+                    onClick={onOpenCategoryManager}
+                    whileTap={{ scale: 0.95 }}
+                    className="p-3 rounded-2xl border border-dashed border-slate-200 bg-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Settings2 className="w-5 h-5" />
+                    <span className="text-[10px] font-bold">Quản lý</span>
+                  </motion.button>
                 </div>
               </div>
 

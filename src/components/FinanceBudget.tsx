@@ -14,8 +14,11 @@ import {
   MinusCircle, 
   Calendar,
   AlertCircle,
-  Trash2
+  Trash2,
+  X,
+  DollarSign
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
 import { Budget, Debt, SavingsGoal } from "../types";
 
@@ -52,6 +55,16 @@ export default function FinanceBudget({
   const [installments, setInstallments] = useState(1);
   const [swipedDebtId, setSwipedDebtId] = useState<string | null>(null);
   const [interestExplanationVisible, setInterestExplanationVisible] = useState(false);
+
+  // Modal states
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalTitle, setGoalTitle] = useState("Mua xe máy mới");
+  const [goalAmountStr, setGoalAmountStr] = useState("50,000,000");
+  const [goalMonths, setGoalMonths] = useState("6");
+
+  const [showFundModal, setShowFundModal] = useState(false);
+  const [fundAmount, setFundAmount] = useState("");
+  const [isDeposit, setIsDeposit] = useState(true);
 
   const handleAmountChange = (val: string) => {
     const clean = val.replace(/\D/g, "");
@@ -195,7 +208,7 @@ export default function FinanceBudget({
   const savingsPct = activeSavings ? Math.round((activeSavings.currentAmount / activeSavings.goalAmount) * 100) : 0;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-40">
       {/* SECTION 1: MONTHLY BUDGET LIMIT MONITOR */}
       <div id="finance-budgets-section" className="space-y-3">
         <div className="flex items-center gap-2">
@@ -619,20 +632,7 @@ export default function FinanceBudget({
             <p className="text-sm font-semibold">Chưa có mục tiêu tiết kiệm nào</p>
             <p className="text-[10px]">Thiết lập mục tiêu để bắt đầu tích lũy</p>
             <button
-              onClick={() => {
-                const title = prompt("Tên mục tiêu:", "Mua xe máy mới");
-                if (!title) return;
-                const goalAmt = prompt("Số tiền mục tiêu (VND):", "50000000");
-                if (!goalAmt) return;
-                const months = prompt("Số tháng muốn đạt mục tiêu:", "6");
-                if (!months) return;
-                const monthsNum = parseInt(months);
-                const targetDate = new Date();
-                targetDate.setMonth(targetDate.getMonth() + monthsNum);
-                const firstDeposit = Math.round(parseInt(goalAmt) / monthsNum);
-                onUpdateSavings(firstDeposit);
-                setTimeout(() => window.location.reload(), 500);
-              }}
+              onClick={() => setShowGoalModal(true)}
               className="bg-slate-900 text-white font-bold text-xs px-5 py-2.5 rounded-full hover:bg-slate-800 cursor-pointer"
             >
               <Plus className="w-4 h-4 inline mr-1" />
@@ -699,15 +699,7 @@ export default function FinanceBudget({
               {/* + Fund (Nạp quỹ) */}
               <button
                 id="btn-savings-deposit"
-                onClick={() => {
-                  const amtStr = prompt("Nhập số tiền muốn nạp vào quỹ tiết kiệm:");
-                  if (amtStr) {
-                    const amt = parseFloat(amtStr);
-                    if (!isNaN(amt) && amt > 0) {
-                      onUpdateSavings(amt);
-                    }
-                  }
-                }}
+                onClick={() => { setIsDeposit(true); setFundAmount(""); setShowFundModal(true); }}
                 className="bg-slate-900 text-white font-bold text-xs py-3 rounded-xl shadow-sm hover:bg-slate-800 cursor-pointer transition-all flex items-center justify-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
@@ -717,15 +709,7 @@ export default function FinanceBudget({
               {/* - Withdraw (Rút quỹ) */}
               <button
                 id="btn-savings-withdraw"
-                onClick={() => {
-                  const amtStr = prompt("Nhập số tiền muốn rút từ quỹ tiết kiệm:");
-                  if (amtStr) {
-                    const amt = parseFloat(amtStr);
-                    if (!isNaN(amt) && amt > 0) {
-                      onUpdateSavings(-amt);
-                    }
-                  }
-                }}
+                onClick={() => { setIsDeposit(false); setFundAmount(""); setShowFundModal(true); }}
                 className="bg-white border border-slate-100 text-slate-600 font-bold text-xs py-3 rounded-xl shadow-sm hover:bg-slate-50 cursor-pointer transition-all flex items-center justify-center gap-1.5"
               >
                 <Minus className="w-4 h-4" />
@@ -735,6 +719,124 @@ export default function FinanceBudget({
           </div>
         )}
       </div>
+
+      {/* GOAL CREATION MODAL */}
+      <AnimatePresence>
+        {showGoalModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
+            onClick={() => setShowGoalModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">Tạo mục tiêu mới</h3>
+                <button onClick={() => setShowGoalModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tên mục tiêu</label>
+                  <input type="text" value={goalTitle} onChange={(e) => setGoalTitle(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tiền mục tiêu (VND)</label>
+                  <input type="text" value={goalAmountStr} onChange={(e) => setGoalAmountStr(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))
+                    } className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tháng muốn đạt</label>
+                  <input type="number" min="1" value={goalMonths} onChange={(e) => setGoalMonths(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!goalTitle.trim()) { toast.error("Nhập tên mục tiêu"); return; }
+                  const amt = parseInt(goalAmountStr.replace(/,/g, ''));
+                  if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
+                  const months = parseInt(goalMonths);
+                  if (!months || months <= 0) { toast.error("Nhập số tháng hợp lệ"); return; }
+                  const targetDate = new Date();
+                  targetDate.setMonth(targetDate.getMonth() + months);
+                  const firstDeposit = Math.round(amt / months);
+                  onUpdateSavings(firstDeposit);
+                  setShowGoalModal(false);
+                  toast.success("Đã tạo mục tiêu!");
+                  setTimeout(() => window.location.reload(), 500);
+                }}
+                className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all"
+              >
+                Tạo mục tiêu
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FUND MODAL (Nạp / Rút) */}
+      <AnimatePresence>
+        {showFundModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
+            onClick={() => setShowFundModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">{isDeposit ? "Nạp vào quỹ" : "Rút từ quỹ"}</h3>
+                <button onClick={() => setShowFundModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Số tiền (VND)</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))}
+                    placeholder="0"
+                    className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-100 rounded-[16px] text-sm font-bold focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const amt = parseInt(fundAmount.replace(/,/g, ''));
+                  if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
+                  onUpdateSavings(isDeposit ? amt : -amt);
+                  setShowFundModal(false);
+                  toast.success(isDeposit ? "Đã nạp vào quỹ!" : "Đã rút khỏi quỹ!");
+                }}
+                className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all"
+              >
+                {isDeposit ? "Nạp quỹ" : "Rút quỹ"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -56,6 +56,13 @@ const SavingsGoalSchema = new mongoose.Schema({
   icon: { type: String, default: 'piggy' }
 }, { versionKey: false });
 
+const CategorySchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  icon: { type: String, default: 'Tag' },
+  color: { type: String, default: 'slate' },
+  order: { type: Number, default: 0 }
+}, { versionKey: false });
+
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -66,4 +73,5 @@ export const Transaction = mongoose.models.Transaction || mongoose.model('Transa
 export const Budget = mongoose.models.Budget || mongoose.model('Budget', BudgetSchema);
 export const Debt = mongoose.models.Debt || mongoose.model('Debt', DebtSchema);
 export const SavingsGoal = mongoose.models.SavingsGoal || mongoose.model('SavingsGoal', SavingsGoalSchema);
+export const CategoryModel = mongoose.models.Category || mongoose.model('Category', CategorySchema);
 export const User = mongoose.models.User || mongoose.model('User', UserSchema);

@@ -5,31 +5,25 @@ import {
   TrendingDown, 
   ArrowDownLeft, 
   ArrowUpRight, 
-  ScanFace, 
   AlertCircle,
   Activity,
   ChevronRight,
   ShieldAlert,
-  ShieldCheck,
   CheckCircle2
 } from "lucide-react";
-import { Transaction, Debt } from "../types";
+import { Transaction, Debt, Category } from "../types";
 
 interface DashboardProps {
   transactions: Transaction[];
   debts: Debt[];
-  faceIdEnabled: boolean;
-  toggleFaceId: () => void;
-  triggerFaceIdScan: () => void;
+  categories: Category[];
   onNavigateToTab: (tab: number) => void;
 }
 
 export default function Dashboard({
   transactions,
   debts,
-  faceIdEnabled,
-  toggleFaceId,
-  triggerFaceIdScan,
+  categories,
   onNavigateToTab
 }: DashboardProps) {
 
@@ -69,13 +63,9 @@ export default function Dashboard({
   const trendPercentage = totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0;
 
   // Category expense grouping for Donut Chart
-  const categorySpentMap: { [key: string]: number } = {
-    "Ăn uống": 0,
-    "Di chuyển": 0,
-    "Mua sắm": 0,
-    "Hóa đơn": 0,
-    "Khác": 0
-  };
+  const categorySpentMap: { [key: string]: number } = {};
+  categories.forEach(c => { categorySpentMap[c.name] = 0; });
+  categorySpentMap["Khác"] = 0;
 
   transactions
     .filter((t) => t.type === "expense")
@@ -88,15 +78,29 @@ export default function Dashboard({
       }
     });
 
+  const colorHexMap: Record<string, string> = {
+    red: '#FED7D7',
+    amber: '#FEEBC8',
+    blue: '#EBF8FF',
+    teal: '#E6FFFA',
+    emerald: '#D1FAE5',
+    slate: '#EDF2F7',
+    indigo: '#E0E7FF',
+    rose: '#FFE4E6',
+    purple: '#F3E8FF',
+    orange: '#FFEDD5',
+  };
+
+  const getColor = (name: string) => {
+    const cat = categories.find(c => c.name === name);
+    if (cat) return colorHexMap[cat.color] || '#EDF2F7';
+    return '#EDF2F7';
+  };
+
   const categoriesData = Object.keys(categorySpentMap).map((key) => ({
     name: key,
     value: categorySpentMap[key],
-    color: 
-      key === "Ăn uống" ? "#FED7D7" : // Pastel Blush Rose / pink
-      key === "Di chuyển" ? "#FEEBC8" : // Pastel Apricot Orange
-      key === "Mua sắm" ? "#EBF8FF" : // Pastel Blue
-      key === "Hóa đơn" ? "#E6FFFA" : // Pastel Teal / Mint Green
-      "#EDF2F7" // Soft Grey
+    color: getColor(key),
   }));
 
   const totalExpenseComputed = categoriesData.reduce((sum, c) => sum + c.value, 0);
@@ -144,26 +148,13 @@ export default function Dashboard({
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-40">
       {/* HEADER SECTION */}
       <div id="header-section" className="flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-400 tracking-wider uppercase">TÀI KHOẢN CỦA TÔI</span>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">Chào Lâm Huệ Trung!</h1>
         </div>
-        <button
-          id="btn-faceid-recognition"
-          onClick={triggerFaceIdScan}
-          className={`p-3 rounded-2xl flex items-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer ${
-            faceIdEnabled 
-              ? "bg-emerald-50 border border-emerald-200/80 text-emerald-600 hover:bg-emerald-100" 
-              : "bg-white border border-slate-100 text-slate-400 hover:bg-slate-50"
-          }`}
-          title={faceIdEnabled ? "Bảo mật FaceID đang bật" : "Bật bảo mật FaceID"}
-        >
-          <ScanFace className="w-5 h-5" />
-          <span className="text-xs font-semibold">{faceIdEnabled ? "FaceID On" : "FaceID Off"}</span>
-        </button>
       </div>
 
       {/* TARGETED AVAILABLE CASH BALANCE CARD */}

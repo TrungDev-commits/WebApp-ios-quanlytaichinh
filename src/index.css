@@ -52,6 +52,11 @@ body {
   border-radius: 28px;
 }
 
+/* iOS Safari zoom fix: force font-size ≥ 16px on inputs */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
 /* Custom Markdown formatting overrides inside chat bubble */
 .markdown-body p {
   margin-bottom: 0.75rem;

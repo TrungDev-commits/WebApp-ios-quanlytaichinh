@@ -42,6 +42,14 @@ export interface SavingsGoal {
   icon: string;
 }
 
+export interface Category {
+  _id: string;
+  name: string;
+  icon: string;
+  color: string;
+  order: number;
+}
+
 export interface Message {
   id: string;
   sender: 'user' | 'gemini';

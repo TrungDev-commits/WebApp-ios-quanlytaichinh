@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { Lock, Smartphone, ShieldCheck, HelpCircle, Loader2, LogOut, User } from "lucide-react";
+import { Smartphone, Loader2, LogOut, User } from "lucide-react";
+import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ToastProvider from "./components/ToastProvider";
 import Navbar from "./components/Navbar";
 import Dashboard from "./components/Dashboard";
 import Ledger from "./components/Ledger";
 import QuickAddModal from "./components/QuickAddModal";
 import FinanceBudget from "./components/FinanceBudget";
 import AICovisor from "./components/AICovisor";
-import FaceIDVerification from "./components/FaceIDVerification";
+import CategoryManager from "./components/CategoryManager";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import { useTransactions } from "./hooks/useTransactions";
 import { useBudgets } from "./hooks/useBudgets";
 import { useDebts } from "./hooks/useDebts";
 import { useSavings } from "./hooks/useSavings";
-import { Transaction, Budget, Debt, SavingsGoal } from "./types";
+import { useCategories } from "./hooks/useCategories";
+import { Transaction, Debt, Category } from "./types";
 
 function AppContent() {
   const { isAuthenticated, loading: authLoading, username, logout } = useAuth();
@@ -27,65 +30,44 @@ function AppContent() {
   const { budgets, loading: budgetLoading, updateBudgetLimit } = useBudgets();
   const { debts, loading: debtLoading, addDebt, deleteDebt, payDebtInstallment } = useDebts();
   const { savings, loading: saveLoading, updateSavings } = useSavings();
+  const { categories, addCategory, updateCategory, deleteCategory, reorderCategories } = useCategories();
 
   const isInitialLoading = txLoading || budgetLoading || debtLoading || saveLoading;
-
-  const [faceIdEnabled, setFaceIdEnabled] = useState<boolean>(false);
-  const [isFaceIdScanning, setIsFaceIdScanning] = useState<boolean>(false);
-  const [appLocked, setAppLocked] = useState<boolean>(false);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && faceIdEnabled) {
-        setAppLocked(true);
-        setIsFaceIdScanning(true);
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [faceIdEnabled]);
-
-  const triggerFaceIdToggleScan = () => setIsFaceIdScanning(true);
-
-  const handleFaceIdSuccess = () => {
-    setIsFaceIdScanning(false);
-    setAppLocked(false);
-    if (!faceIdEnabled) setFaceIdEnabled(true);
-  };
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
 
   const handleAddTransaction = async (newTx: Omit<Transaction, "id">) => {
     try { await addTransaction(newTx); }
-    catch (err: any) { alert("Lỗi khi thêm giao dịch: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handleDeleteTransaction = async (id: string) => {
     try { await deleteTransaction(id); }
-    catch (err: any) { alert("Lỗi khi xóa giao dịch: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handleUpdateSavings = async (amount: number) => {
     try { await updateSavings(amount); }
-    catch (err: any) { alert("Lỗi cập nhật quỹ tiết kiệm: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handleUpdateBudgetLimit = async (category: string, newLimit: number) => {
     try { await updateBudgetLimit(category, newLimit); }
-    catch (err: any) { alert("Lỗi cập nhật ngân sách: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handlePayDebtInstallment = async (debtId: string, installmentIndex: number) => {
     try { await payDebtInstallment(debtId, installmentIndex); }
-    catch (err: any) { alert("Lỗi thanh toán: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handleAddDebt = async (newDebt: Omit<Debt, "id">) => {
     try { await addDebt(newDebt); }
-    catch (err: any) { alert("Lỗi thêm công nợ: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const handleDeleteDebt = async (id: string) => {
     try { await deleteDebt(id); }
-    catch (err: any) { alert("Lỗi xóa công nợ: " + err.message); }
+    catch (err: any) { toast.error(err.message); }
   };
 
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -147,16 +129,6 @@ function AppContent() {
             <User className="w-3 h-3" />
             <span>{username}</span>
           </div>
-          {faceIdEnabled && (
-            <button 
-              onClick={() => { setAppLocked(true); setIsFaceIdScanning(true); }}
-              className="flex items-center gap-1 text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md hover:bg-slate-200 transition-colors text-[10px] font-black cursor-pointer"
-              title="Khóa thủ công"
-            >
-              <Lock className="w-3 h-3 text-slate-900" />
-              <span>Khóa</span>
-            </button>
-          )}
           <button
             onClick={logout}
             className="flex items-center gap-1 text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100 transition-colors text-[10px] font-black cursor-pointer"
@@ -172,23 +144,9 @@ function AppContent() {
       <main 
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className="flex-1 w-full max-w-md mx-auto px-5 pt-4 pb-28 overflow-y-auto relative"
+        className="flex-1 w-full max-w-md mx-auto px-5 pt-4 pb-28 overflow-hidden relative"
       >
-        {appLocked ? (
-          <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-4">
-            <div className="p-4 bg-slate-100 rounded-full animate-pulse text-slate-400">
-              <Lock className="w-8 h-8" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">Ứng dụng đang được khóa bảo mật</h3>
-            <p className="text-xs text-slate-400 max-w-xs">Vui lòng sử dụng FaceID để xác thực lại.</p>
-            <button
-              onClick={() => setIsFaceIdScanning(true)}
-              className="mt-2 bg-slate-900 text-white font-bold text-xs px-5 py-2.5 rounded-full shadow-sm hover:bg-slate-800 cursor-pointer"
-            >
-              Xác thực FaceID
-            </button>
-          </div>
-        ) : isInitialLoading ? (
+        {isInitialLoading ? (
           <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-4">
             <Loader2 className="w-10 h-10 text-slate-400 animate-spin" />
             <p className="text-sm font-semibold text-slate-500">Đang tải dữ liệu...</p>
@@ -201,15 +159,13 @@ function AppContent() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="h-full"
+              className={currentTab === 5 ? "h-full flex flex-col" : "h-full overflow-y-auto"}
             >
               {currentTab === 1 && (
                 <Dashboard
                   transactions={transactions}
                   debts={debts}
-                  faceIdEnabled={faceIdEnabled}
-                  toggleFaceId={triggerFaceIdToggleScan}
-                  triggerFaceIdScan={triggerFaceIdToggleScan}
+                  categories={categories}
                   onNavigateToTab={setCurrentTab}
                 />
               )}
@@ -217,6 +173,7 @@ function AppContent() {
                 <Ledger
                   transactions={transactions}
                   onDeleteTransaction={handleDeleteTransaction}
+                  categories={categories}
                 />
               )}
               {currentTab === 4 && (
@@ -244,25 +201,28 @@ function AppContent() {
         )}
       </main>
 
-      {!appLocked && (
-        <Navbar
+      <Navbar
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
           onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         />
-      )}
 
       <QuickAddModal
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
         onAddTransaction={handleAddTransaction}
+        categories={categories}
+        onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
       />
 
-      <FaceIDVerification
-        isOpen={isFaceIdScanning}
-        onSuccess={handleFaceIdSuccess}
-        onCancel={() => setIsFaceIdScanning(false)}
-        isSettingsActivation={!faceIdEnabled}
+      <CategoryManager
+        isOpen={isCategoryManagerOpen}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        categories={categories}
+        onAdd={addCategory}
+        onUpdate={updateCategory}
+        onDelete={deleteCategory}
+        onReorder={reorderCategories}
       />
     </div>
   );
@@ -292,7 +252,9 @@ function AuthRouter() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

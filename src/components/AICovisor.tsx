@@ -146,7 +146,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
   });
 
   return (
-    <div className="flex flex-col h-[calc(68vh+2rem)] pb-2 relative">
+    <div className="flex flex-col h-full pb-4 relative">
       {/* iOS Messages Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-2">
         <div className="flex items-center gap-3">
