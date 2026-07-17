@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "@mdi/react";
 import {
   mdiPiggyBank, mdiCheckCircleOutline, mdiAlertOutline, mdiBellRingOutline,
@@ -655,155 +656,160 @@ export default function FinanceBudget({
         </motion.div>
       </AnimatePresence>
 
-      {paymentDebtId && (() => {
-        const debt = debts.find(d => d.id === paymentDebtId);
-        if (!debt) return null;
-        const unpaid = debt.installments.filter(i => i.status === 'pending' || i.status === 'partial');
-        return (
+      {createPortal(
+        <>
           <AnimatePresence>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-end justify-center"
-              onClick={() => setPaymentDebtId(null)}>
-              <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                onClick={e => e.stopPropagation()}
-                className="relative w-full max-w-md bg-white rounded-t-[32px] p-6 max-h-[80vh] overflow-y-auto shadow-[0_-12px_48px_rgba(0,0,0,0.12)]">
-                <div className="flex items-start justify-between gap-2 mb-5">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-bold text-slate-800">Thanh toán</h3>
-                    <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{debt.name} — {formatVND(debt.currentBalance)} còn lại</p>
-                  </div>
-                  <button onClick={() => setPaymentDebtId(null)} className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 cursor-pointer shrink-0">
-                    <Icon path={mdiClose} size={1.25} />
-                  </button>
-                </div>
-                <div className="space-y-3 mb-5">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chọn kỳ thanh toán</p>
-                  {unpaid.map(inst => (
-                    <label key={inst.index} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-white cursor-pointer hover:border-slate-200">
-                      <input type="checkbox" checked={selectedInstallments.includes(inst.index)}
-                        onChange={() => setSelectedInstallments(prev =>
-                          prev.includes(inst.index) ? prev.filter(i => i !== inst.index) : [...prev, inst.index]
-                        )}
-                        className="w-4 h-4 text-slate-900 rounded border-slate-300 focus:ring-slate-900" />
-                      <div className="flex-1 flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-slate-700">Kỳ {inst.index + 1}</span>
-                          <span className="text-[9px] text-slate-400 ml-2">Hạn: {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString("vi-VN", { month: "short", day: "numeric" })}</span>
-                        </div>
-                        <span className="text-xs font-extrabold text-slate-800">{formatVND(inst.amount)}</span>
+            {paymentDebtId && (() => {
+              const debt = debts.find(d => d.id === paymentDebtId);
+              if (!debt) return null;
+              const unpaid = debt.installments.filter(i => i.status === 'pending' || i.status === 'partial');
+              return (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-end justify-center"
+                  onClick={() => setPaymentDebtId(null)}>
+                  <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                    transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                    onClick={e => e.stopPropagation()}
+                    className="relative w-full max-w-md bg-white rounded-t-[32px] p-6 pb-10 max-h-[80vh] overflow-y-auto shadow-[0_-12px_48px_rgba(0,0,0,0.12)]">
+                    <div className="flex items-start justify-between gap-2 mb-5">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-slate-800">Thanh toán</h3>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{debt.name} — {formatVND(debt.currentBalance)} còn lại</p>
                       </div>
-                    </label>
-                  ))}
-                </div>
-                <div className="space-y-1.5 mb-5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ghi chú</label>
-                  <input type="text" value={paymentNote} onChange={e => setPaymentNote(e.target.value)}
-                    placeholder="VD: Trả từ lương tháng 7"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-[20px] text-xs outline-none focus:ring-1 focus:ring-slate-900" />
-                </div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    Tổng: <b className="text-slate-900">{formatVND(selectedInstallments.reduce((s, i) => {
-                      const inst = debt.installments.find(ii => ii.index === i);
-                      return s + (inst ? inst.amount - inst.paidAmount : 0);
-                    }, 0))}</b>
-                  </span>
-                </div>
-                <button onClick={handlePaySubmit} disabled={selectedInstallments.length === 0}
-                  className="w-full bg-slate-900 text-white font-bold text-sm py-3.5 rounded-[22px] hover:bg-slate-800 disabled:opacity-40 transition-all cursor-pointer shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
-                  Xác nhận thanh toán
-                </button>
-              </motion.div>
-            </motion.div>
+                      <button onClick={() => setPaymentDebtId(null)} className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 cursor-pointer shrink-0">
+                        <Icon path={mdiClose} size={1.25} />
+                      </button>
+                    </div>
+                    <div className="space-y-3 mb-5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chọn kỳ thanh toán</p>
+                      {unpaid.map(inst => (
+                        <label key={inst.index} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-white cursor-pointer hover:border-slate-200">
+                          <input type="checkbox" checked={selectedInstallments.includes(inst.index)}
+                            onChange={() => setSelectedInstallments(prev =>
+                              prev.includes(inst.index) ? prev.filter(i => i !== inst.index) : [...prev, inst.index]
+                            )}
+                            className="w-4 h-4 text-slate-900 rounded border-slate-300 focus:ring-slate-900" />
+                          <div className="flex-1 flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-slate-700">Kỳ {inst.index + 1}</span>
+                              <span className="text-[9px] text-slate-400 ml-2">Hạn: {new Date(inst.dueDate + 'T00:00:00').toLocaleDateString("vi-VN", { month: "short", day: "numeric" })}</span>
+                            </div>
+                            <span className="text-xs font-extrabold text-slate-800">{formatVND(inst.amount)}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="space-y-1.5 mb-5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ghi chú</label>
+                      <input type="text" value={paymentNote} onChange={e => setPaymentNote(e.target.value)}
+                        placeholder="VD: Trả từ lương tháng 7"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-[20px] text-xs outline-none focus:ring-1 focus:ring-slate-900" />
+                    </div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Tổng: <b className="text-slate-900">{formatVND(selectedInstallments.reduce((s, i) => {
+                          const inst = debt.installments.find(ii => ii.index === i);
+                          return s + (inst ? inst.amount - inst.paidAmount : 0);
+                        }, 0))}</b>
+                      </span>
+                    </div>
+                    <button onClick={handlePaySubmit} disabled={selectedInstallments.length === 0}
+                      className="w-full bg-slate-900 text-white font-bold text-sm py-3.5 rounded-[22px] hover:bg-slate-800 disabled:opacity-40 transition-all cursor-pointer shadow-[0_8px_24px_rgba(15,23,42,0.15)]">
+                      Xác nhận thanh toán
+                    </button>
+                  </motion.div>
+                </motion.div>
+              );
+            })()}
           </AnimatePresence>
-        );
-      })()}
 
-      <AnimatePresence>
-        {showGoalModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
-            onClick={() => setShowGoalModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800">Tạo mục tiêu mới</h3>
-                <button onClick={() => setShowGoalModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
-                  <Icon path={mdiClose} size={0.875} className="text-slate-400" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tên mục tiêu</label>
-                  <input type="text" value={goalTitle} onChange={e => setGoalTitle(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tiền (VND)</label>
-                  <input type="text" value={goalAmountStr} onChange={e => setGoalAmountStr(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tháng</label>
-                  <input type="number" min="1" value={goalMonths} onChange={e => setGoalMonths(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
-                </div>
-              </div>
-              <button onClick={() => {
-                if (!goalTitle.trim()) { toast.error("Nhập tên mục tiêu"); return; }
-                const amt = parseInt(goalAmountStr.replace(/,/g, ''));
-                if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
-                const months = parseInt(goalMonths);
-                if (!months || months <= 0) { toast.error("Nhập số tháng hợp lệ"); return; }
-                const targetDate = new Date(); targetDate.setMonth(targetDate.getMonth() + months);
-                onUpdateSavings(Math.round(amt / months));
-                setShowGoalModal(false);
-                toast.success("Đã tạo mục tiêu!");
-              }}
-                className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all">
-                Tạo mục tiêu
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {showGoalModal && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
+                onClick={() => setShowGoalModal(false)}>
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={e => e.stopPropagation()}
+                  className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-800">Tạo mục tiêu mới</h3>
+                    <button onClick={() => setShowGoalModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
+                      <Icon path={mdiClose} size={0.875} className="text-slate-400" />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tên mục tiêu</label>
+                      <input type="text" value={goalTitle} onChange={e => setGoalTitle(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tiền (VND)</label>
+                      <input type="text" value={goalAmountStr} onChange={e => setGoalAmountStr(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Số tháng</label>
+                      <input type="number" min="1" value={goalMonths} onChange={e => setGoalMonths(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-[14px] text-sm font-semibold outline-none" />
+                    </div>
+                  </div>
+                  <button onClick={() => {
+                    if (!goalTitle.trim()) { toast.error("Nhập tên mục tiêu"); return; }
+                    const amt = parseInt(goalAmountStr.replace(/,/g, ''));
+                    if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
+                    const months = parseInt(goalMonths);
+                    if (!months || months <= 0) { toast.error("Nhập số tháng hợp lệ"); return; }
+                    const targetDate = new Date(); targetDate.setMonth(targetDate.getMonth() + months);
+                    onUpdateSavings(Math.round(amt / months));
+                    setShowGoalModal(false);
+                    toast.success("Đã tạo mục tiêu!");
+                  }}
+                    className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all">
+                    Tạo mục tiêu
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {showFundModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
-            onClick={() => setShowFundModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800">{isDeposit ? "Nạp vào quỹ" : "Rút từ quỹ"}</h3>
-                <button onClick={() => setShowFundModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
-                  <Icon path={mdiClose} size={0.875} className="text-slate-400" />
-                </button>
-              </div>
-              <div className="relative">
-                <Icon path={mdiCurrencyUsd} size={1} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="text" value={fundAmount} onChange={e => setFundAmount(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))}
-                  placeholder="0" autoFocus
-                  className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-100 rounded-[16px] text-sm font-bold outline-none" />
-              </div>
-              <button onClick={() => {
-                const amt = parseInt(fundAmount.replace(/,/g, ''));
-                if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
-                onUpdateSavings(isDeposit ? amt : -amt);
-                setShowFundModal(false);
-                toast.success(isDeposit ? "Đã nạp vào quỹ!" : "Đã rút khỏi quỹ!");
-              }}
-                className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all">
-                {isDeposit ? "Nạp quỹ" : "Rút quỹ"}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {showFundModal && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6"
+                onClick={() => setShowFundModal(false)}>
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={e => e.stopPropagation()}
+                  className="bg-white rounded-[28px] p-6 w-full max-w-sm shadow-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-800">{isDeposit ? "Nạp vào quỹ" : "Rút từ quỹ"}</h3>
+                    <button onClick={() => setShowFundModal(false)} className="p-1 rounded-full hover:bg-slate-100 cursor-pointer">
+                      <Icon path={mdiClose} size={0.875} className="text-slate-400" />
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Icon path={mdiCurrencyUsd} size={1} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" value={fundAmount} onChange={e => setFundAmount(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ','))}
+                      placeholder="0" autoFocus
+                      className="w-full pl-9 pr-3 py-3 bg-slate-50 border border-slate-100 rounded-[16px] text-sm font-bold outline-none" />
+                  </div>
+                  <button onClick={() => {
+                    const amt = parseInt(fundAmount.replace(/,/g, ''));
+                    if (!amt || amt <= 0) { toast.error("Nhập số tiền hợp lệ"); return; }
+                    onUpdateSavings(isDeposit ? amt : -amt);
+                    setShowFundModal(false);
+                    toast.success(isDeposit ? "Đã nạp vào quỹ!" : "Đã rút khỏi quỹ!");
+                  }}
+                    className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all">
+                    {isDeposit ? "Nạp quỹ" : "Rút quỹ"}
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
