@@ -8,9 +8,7 @@ import {
   Loader2, 
   Bot, 
   User, 
-  ChevronLeft,
-  Trash2,
-  Clock
+  Trash2
 } from "lucide-react";
 import Markdown from "react-markdown";
 import { motion, AnimatePresence } from "motion/react";
@@ -84,32 +82,23 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
       const response = await fetch("/.netlify/functions/gemini-advisor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactions,
-          budgets,
-          debts,
-          savings,
-          promptType,
-          customMessage: promptType === "custom" ? userText : undefined
-        })
+        body: JSON.stringify({ transactions, budgets, debts, savings, promptType, customMessage: promptType === "custom" ? userText : undefined })
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Không thể kết nối với máy chủ AI");
 
-      const geminiResponse: Message = {
+      setMessages(prev => [...prev, {
         id: Math.random().toString(),
         sender: "gemini",
         text: data.text || "Xin lỗi, tôi chưa thể phân tích thông tin này lúc này.",
         timestamp: new Date().toISOString()
-      };
-
-      setMessages(prev => [...prev, geminiResponse]);
+      }]);
     } catch (error: any) {
       setMessages(prev => [...prev, {
         id: Math.random().toString(),
         sender: "gemini",
-        text: `❌ **Lỗi kết nối AI:** ${error.message}\n\nHãy đảm bảo đã cấu hình **GEMINI_API_KEY** trong Netlify Environment Variables.`,
+        text: `❌ **Lỗi kết nối AI:** ${error.message}\n\nHãy đảm bảo đã cấu hình **GEMINI_API_KEY** trong Netlify Environment Variables hoặc kiểm tra kết nối mạng.`,
         timestamp: new Date().toISOString()
       }]);
     } finally {
@@ -132,7 +121,6 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
     }]);
   };
 
-  // Group messages for timestamp separators
   const groupedMessages: { type: 'timestamp' | 'message'; data: any }[] = [];
   let lastTime = "";
   messages.forEach((msg) => {
@@ -146,9 +134,8 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
   });
 
   return (
-    <div className="flex flex-col h-full pb-4 relative">
-      {/* iOS Messages Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-2">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shadow-sm">
             <Sparkles className="w-5 h-5 text-white" />
@@ -158,17 +145,12 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
             <p className="text-[11px] text-slate-400 font-medium">Cố vấn tài chính AI</p>
           </div>
         </div>
-        <button
-          onClick={clearChat}
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors"
-          title="Xoá chat"
-        >
+        <button onClick={clearChat} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors" title="Xoá chat">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Messages Area — iOS Messages style */}
-      <div className="flex-1 overflow-y-auto pb-2 px-1">
+      <div className="flex-1 overflow-y-auto min-h-0 py-2 -mx-1 px-1 overscroll-behavior-contain">
         <div className="space-y-1">
           {groupedMessages.map((item, idx) => {
             if (item.type === 'timestamp') {
@@ -199,13 +181,11 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
                 )}
 
                 <div className={`max-w-[78%] space-y-0.5 ${!isGemini ? "items-end" : ""}`}>
-                  <div
-                    className={`px-3.5 py-2.5 text-[14px] leading-relaxed ${
-                      isGemini
-                        ? "bg-[#E9E9EB] text-slate-800 rounded-[20px] rounded-bl-[4px]"
-                        : "bg-[#007AFF] text-white rounded-[20px] rounded-br-[4px]"
-                    }`}
-                  >
+                  <div className={`px-3.5 py-2.5 text-[14px] leading-relaxed ${
+                    isGemini
+                      ? "bg-[#E9E9EB] text-slate-800 rounded-[20px] rounded-bl-[4px]"
+                      : "bg-[#007AFF] text-white rounded-[20px] rounded-br-[4px]"
+                  }`}>
                     <div className={`markdown-body prose prose-sm max-w-none ${isGemini ? "prose-slate" : "prose-invert"}`}>
                       <Markdown>{msg.text}</Markdown>
                     </div>
@@ -224,7 +204,6 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
             );
           })}
 
-          {/* AI Typing Indicator */}
           {isLoading && (
             <motion.div
               initial={{ opacity: 0, scale: 0.92 }}
@@ -245,10 +224,8 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
         </div>
       </div>
 
-      {/* Input area — iOS Messages style */}
-      <div className="pt-2 border-t border-slate-100 space-y-2.5">
-        {/* Quick Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 select-none">
+      <div className="pt-2 border-t border-slate-100 space-y-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 select-none no-swipe">
           {quickChips.map((chip) => {
             const Icon = chip.icon;
             return (
@@ -265,7 +242,6 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
           })}
         </div>
 
-        {/* Message input */}
         <form onSubmit={handleSubmit} className="relative flex items-center gap-2">
           <input
             type="text"

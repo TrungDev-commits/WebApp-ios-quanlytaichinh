@@ -38,6 +38,14 @@ export const api = {
     update: (amount: number) => request(`${BASE}/savings`, { method: 'PUT', body: JSON.stringify({ amount }) }),
   },
 
+  categories: {
+    list: () => request(`${BASE}/categories`),
+    create: (data: any) => request(`${BASE}/categories`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (data: any) => request(`${BASE}/categories`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (_id: string) => request(`${BASE}/categories`, { method: 'DELETE', body: JSON.stringify({ _id }) }),
+    reorder: (orderedIds: string[]) => request(`${BASE}/categories/reorder`, { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+  },
+
   gemini: {
     advisor: (data: any) => request(`${BASE}/gemini-advisor`, { method: 'POST', body: JSON.stringify(data) }),
     ocr: (data: any) => request(`${BASE}/gemini-ocr`, { method: 'POST', body: JSON.stringify(data) }),

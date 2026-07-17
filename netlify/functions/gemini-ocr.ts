@@ -1,6 +1,12 @@
 import { Handler } from '@netlify/functions';
 import { GoogleGenAI, Type } from '@google/genai';
 
+const SAMPLE_RESPONSES: Record<string, { amount: number; category: string; description: string }> = {
+  starbucks: { amount: 85000, category: 'Ăn uống', description: 'Cà phê Starbucks' },
+  coopmart: { amount: 450000, category: 'Mua sắm', description: 'Thực phẩm Co.opmart' },
+  cgv: { amount: 220000, category: 'Mua sắm', description: 'Vé xem phim CGV' },
+};
+
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -18,6 +24,12 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    const { image, sampleName } = JSON.parse(event.body || '{}');
+
+    if (sampleName && SAMPLE_RESPONSES[sampleName]) {
+      return { statusCode: 200, headers, body: JSON.stringify(SAMPLE_RESPONSES[sampleName]) };
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing API Key', message: 'Vui lòng cấu hình GEMINI_API_KEY trong Netlify Environment Variables.' }) };
@@ -28,39 +40,21 @@ export const handler: Handler = async (event) => {
       httpOptions: { headers: { 'User-Agent': 'netlify-build' } }
     });
 
-    const { image, sampleName } = JSON.parse(event.body || '{}');
-    let contentsPayload: any;
+    if (!image || typeof image !== 'string' || !image.startsWith('data:image')) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Không tìm thấy ảnh hợp lệ' }) };
+    }
 
-    if (image && typeof image === 'string' && image.startsWith('data:image')) {
-      const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      if (!matches || matches.length !== 3) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Định dạng ảnh không hợp lệ' }) };
-      }
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-      contentsPayload = {
-        parts: [
-          { inlineData: { mimeType, data: base64Data } },
-          { text: 'Phân tích hóa đơn này và trích xuất thông tin giao dịch chính xác. Trả về định dạng JSON duy nhất: { "amount": số nguyên (số tiền hóa đơn), "category": chọn từ [\'Ăn uống\', \'Di chuyển\', \'Mua sắm\', \'Hóa đơn\', \'Khác\'], "description": chuỗi mô tả ngắn }. Chỉ trả về JSON thô.' }
-        ]
-      };
-    } else {
-      let promptText = '';
-      if (sampleName === 'starbucks') {
-        promptText = 'Hãy giả định bạn vừa quét một hóa đơn Starbucks Coffee trị giá 85000 VNĐ. Trả về JSON: { "amount": 85000, "category": "Ăn uống", "description": "Cà phê Starbucks" }';
-      } else if (sampleName === 'coopmart') {
-        promptText = 'Hãy giả định bạn vừa quét một hóa đơn siêu thị Co.opmart trị giá 450000 VNĐ. Trả về JSON: { "amount": 450000, "category": "Mua sắm", "description": "Thực phẩm Co.opmart" }';
-      } else if (sampleName === 'cgv') {
-        promptText = 'Hãy giả định bạn vừa quét một hóa đơn rạp phim CGV Cinemas trị giá 220000 VNĐ. Trả về JSON: { "amount": 220000, "category": "Mua sắm", "description": "Vé xem phim CGV" }';
-      } else {
-        promptText = 'Hãy giả định một hóa đơn mua sắm ngẫu nhiên trị giá 150000 VNĐ. Trả về JSON: { "amount": 150000, "category": "Mua sắm", "description": "Hóa đơn mua sắm" }';
-      }
-      contentsPayload = promptText;
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Định dạng ảnh không hợp lệ' }) };
     }
 
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash",
-      contents: contentsPayload,
+      contents: [
+        { inlineData: { mimeType: matches[1], data: matches[2] } },
+        { text: 'Phân tích hóa đơn này, trích xuất: tổng tiền (amount), danh mục (category: Ăn uống/Di chuyển/Mua sắm/Hóa đơn/Khác), mô tả ngắn (description). Chỉ trả về JSON.' }
+      ],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -75,10 +69,13 @@ export const handler: Handler = async (event) => {
       }
     });
 
-    const resultText = response.text?.trim() || '';
+    const resultText = response.text?.trim();
+    if (!resultText) throw new Error('AI không trả về kết quả');
+
     const parsedData = JSON.parse(resultText);
     return { statusCode: 200, headers, body: JSON.stringify(parsedData) };
   } catch (error: any) {
+    console.error('gemini-ocr error:', error);
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Lỗi quét hóa đơn', message: error.message }) };
   }
 };

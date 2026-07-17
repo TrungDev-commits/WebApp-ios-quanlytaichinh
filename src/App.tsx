@@ -137,11 +137,11 @@ function AppContent() {
             <LogOut className="w-3 h-3" />
             <span>Thoát</span>
           </button>
-          <span className="text-slate-400 font-extrabold">2026-07-15</span>
+          <span className="text-slate-400 font-extrabold">{new Date().toLocaleDateString("vi-VN")}</span>
         </div>
       </div>
 
-      <main 
+      <main
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         className="flex-1 w-full max-w-md mx-auto px-5 pt-4 pb-28 overflow-hidden relative"
@@ -159,7 +159,7 @@ function AppContent() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
-              className={currentTab === 5 ? "h-full flex flex-col" : "h-full overflow-y-auto"}
+              className={currentTab === 5 ? "h-full flex flex-col min-h-0" : "h-full overflow-y-auto overscroll-behavior-contain"}
             >
               {currentTab === 1 && (
                 <Dashboard
@@ -167,6 +167,7 @@ function AppContent() {
                   debts={debts}
                   categories={categories}
                   onNavigateToTab={setCurrentTab}
+                  username={username}
                 />
               )}
               {currentTab === 2 && (

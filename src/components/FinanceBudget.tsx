@@ -54,13 +54,16 @@ export default function FinanceBudget({
   const [amountInput, setAmountInput] = useState("");
   const [amountMode, setAmountMode] = useState<'total' | 'perPeriod'>('perPeriod');
   const [interest, setInterest] = useState("0");
-  const [startDate, setStartDate] = useState("2026-07-15");
-  const [dueDate, setDueDate] = useState("2026-08-15");
+  const todayStr = new Date().toISOString().split('T')[0];
+  const nextMonthDate = new Date();
+  nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+  const nextMonthStr = nextMonthDate.toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(todayStr);
+  const [dueDate, setDueDate] = useState(nextMonthStr);
   const [paymentDueDay, setPaymentDueDay] = useState("5");
   const [previewTimeline, setPreviewTimeline] = useState<{ date: string; amount: number; completed: boolean }[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [installments, setInstallments] = useState(1);
-  const [swipedDebtId, setSwipedDebtId] = useState<string | null>(null);
   const [interestExplanationVisible, setInterestExplanationVisible] = useState(false);
 
   const generateDefaultTimeline = (startStr: string, _dueStr: string, totalInst: number, amtPerInst: number, dueDayNum: number) => {
@@ -180,11 +183,11 @@ export default function FinanceBudget({
     const raw = parseInt(amountInput.replace(/\D/g, "")) || 0;
     if (raw <= 0) return;
 
+    const interestVal = parseFloat(interest) || 0;
     const totalAmt = amountMode === 'total' ? raw : raw * installments;
     const amtPerPeriod = amountMode === 'total'
       ? Math.round(raw / installments)
       : raw;
-    const interestVal = 0;
 
     // Tái tạo timeline cuối cùng từ amtPerPeriod thực tế (phòng trường hợp AI chưa chạy)
     const dueDayNum = parseInt(paymentDueDay) || 5;
@@ -206,8 +209,8 @@ export default function FinanceBudget({
     setPartner("");
     setAmountInput("");
     setInterest("0");
-    setStartDate("2026-07-15");
-    setDueDate("2026-08-15");
+    setStartDate(todayStr);
+    setDueDate(nextMonthStr);
     setInstallments(1);
     setShowAddForm(false);
   };
@@ -656,130 +659,94 @@ export default function FinanceBudget({
                 const isPayable = debt.type === "payable";
                 const remaining = debt.amount - debt.paid;
                 const repaymentPercent = Math.round((debt.paid / debt.amount) * 100);
-                const isSwiped = swipedDebtId === debt.id;
 
                 return (
-                  <div 
-                    key={debt.id} 
-                    className="relative overflow-hidden rounded-[28px] bg-white border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)]"
+                  <div
+                    key={debt.id}
+                    className="bg-white/95 border border-slate-100 rounded-[28px] p-5 shadow-[0_4px_16px_rgba(0,0,0,0.01)] space-y-4"
                   >
-                    {/* Underlay delete button that shows on swipe */}
-                    <div className="absolute inset-y-0 right-0 w-20 bg-rose-500 flex items-center justify-center">
-                      <button
-                        id={`btn-delete-debt-${debt.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteDebt(debt.id);
-                          setSwipedDebtId(null);
-                        }}
-                        className="w-full h-full text-white flex flex-col items-center justify-center gap-1 hover:bg-rose-600 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-5 h-5 animate-pulse" />
-                        <span className="text-[10px] font-bold">Xóa nợ</span>
-                      </button>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                          isPayable ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                        }`}>
+                          {isPayable ? "Đi vay / Phải trả" : "Cho vay / Thu hồi"}
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-800">{debt.partner}</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {debt.interestRate > 0 && (
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            Lãi {debt.interestRate}%/tháng
+                          </span>
+                        )}
+                        <button
+                          onClick={() => onDeleteDebt(debt.id)}
+                          className="p-2 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-all cursor-pointer"
+                          title="Xóa công nợ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Swipeable transaction item card */}
-                    <motion.div
-                      drag="x"
-                      dragConstraints={{ left: -80, right: 0 }}
-                      dragElastic={0.1}
-                      onDragEnd={(event, info) => {
-                        if (info.offset.x < -40) {
-                          setSwipedDebtId(debt.id);
-                        } else if (info.offset.x > 30) {
-                          setSwipedDebtId(null);
-                        }
-                      }}
-                      animate={{ x: isSwiped ? -80 : 0 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      onClick={() => {
-                        if (isSwiped) {
-                          setSwipedDebtId(null);
-                        } else {
-                          setSwipedDebtId(debt.id);
-                        }
-                      }}
-                      className="bg-white/95 p-5 cursor-grab active:cursor-grabbing relative z-10"
-                    >
-                      {/* Header info */}
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-50">
-                        <div>
-                          <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                            isPayable ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
-                          }`}>
-                            {isPayable ? "Đi vay / Phải trả" : "Cho vay / Thu hồi"}
-                          </span>
-                          <h3 className="text-sm font-bold text-slate-800 mt-1">{debt.partner}</h3>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 block">{formatVND(remaining)} ròng</span>
+                      <span className="text-[10px] text-slate-400 font-semibold">Tổng nợ: {formatVND(debt.amount)}</span>
+                    </div>
 
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-slate-800 block">{formatVND(remaining)} ròng</span>
-                          <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">Tổng nợ: {formatVND(debt.amount)}</span>
-                        </div>
-                      </div>
-
-                      {/* Progress track */}
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold mt-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold">
                         <span>Tiến độ thanh toán</span>
                         <span>{repaymentPercent}%</span>
                       </div>
-                      <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden mt-1.5">
-                        <div 
+                      <div className="w-full h-2 bg-slate-50 rounded-full overflow-hidden">
+                        <div
                           className={`h-full rounded-full transition-all duration-500 ${isPayable ? 'bg-rose-400' : 'bg-emerald-400'}`}
                           style={{ width: `${repaymentPercent}%` }}
                         />
                       </div>
+                    </div>
 
-                      {/* Vertical Timeline installments list (Đợt thanh toán) */}
-                      <div className="mt-4 pt-3 border-t border-slate-50">
-                        <span className="text-[10px] font-bold text-slate-400 tracking-wider block uppercase mb-3">Lộ trình trả nợ chi tiết</span>
-                        
-                        <div className="relative pl-4 border-l border-slate-100 space-y-4">
-                          {debt.timeline.map((installment, idx) => {
-                            const installmentDate = new Date(installment.date).toLocaleDateString("vi-VN", { month: "short", day: "numeric" });
-                            return (
-                              <div key={idx} className="relative flex items-center justify-between text-xs">
-                                {/* Dot status */}
-                                <div className={`absolute -left-[21px] p-0.5 rounded-full bg-white border ${
-                                  installment.completed ? 'border-emerald-500 text-emerald-500' : 'border-slate-300 text-slate-400'
-                                }`}>
-                                  {installment.completed ? (
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <Clock className="w-3.5 h-3.5" />
-                                  )}
-                                </div>
-
-                                <div className="space-y-0.5">
-                                  <span className="font-bold text-slate-700 block">Đợt {idx + 1} - {formatVND(installment.amount)}</span>
-                                  <span className="text-[10px] text-slate-400 font-medium block">Ngày: {installmentDate}</span>
-                                </div>
-
-                                {/* Interactive Payment execution action button */}
-                                {!installment.completed && (
-                                  <button
-                                    id={`btn-pay-installment-${debt.id}-${idx}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onPayDebtInstallment(debt.id, idx);
-                                    }}
-                                    className="bg-slate-900 text-white font-bold text-[9px] px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-slate-800 cursor-pointer transition-all uppercase tracking-wider"
-                                  >
-                                    Đã trả tiền
-                                  </button>
-                                )}
-                                {installment.completed && (
-                                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
-                                    Đã xong
-                                  </span>
+                    <div className="pt-2 border-t border-slate-50">
+                      <span className="text-[10px] font-bold text-slate-400 tracking-wider block uppercase mb-3">Lộ trình trả nợ</span>
+                      <div className="relative pl-4 border-l border-slate-100 space-y-4">
+                        {debt.timeline.map((installment, idx) => {
+                          const installmentDate = new Date(installment.date).toLocaleDateString("vi-VN", { month: "short", day: "numeric" });
+                          return (
+                            <div key={idx} className="relative flex items-center justify-between text-xs">
+                              <div className={`absolute -left-[21px] p-0.5 rounded-full bg-white border ${
+                                installment.completed ? 'border-emerald-500 text-emerald-500' : 'border-slate-300 text-slate-400'
+                              }`}>
+                                {installment.completed ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Clock className="w-3.5 h-3.5" />
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
+
+                              <div className="space-y-0.5">
+                                <span className="font-bold text-slate-700 block">Đợt {idx + 1} - {formatVND(installment.amount)}</span>
+                                <span className="text-[10px] text-slate-400 font-medium block">Ngày: {installmentDate}</span>
+                              </div>
+
+                              {!installment.completed ? (
+                                <button
+                                  onClick={() => onPayDebtInstallment(debt.id, idx)}
+                                  className="bg-slate-900 text-white font-bold text-[9px] px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-slate-800 cursor-pointer transition-all uppercase tracking-wider"
+                                >
+                                  Đã trả tiền
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                                  Đã xong
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
                 );
               })
@@ -787,9 +754,8 @@ export default function FinanceBudget({
           </AnimatePresence>
         </div>
 
-        {/* Swipe tip overlay */}
         <div className="text-center text-[10px] text-slate-400 font-semibold italic mt-2">
-          * Nhấp hoặc vuốt trái công nợ để xóa nhanh hồ sơ (Swipe-to-delete)
+          * Nhấn biểu tượng thùng rác để xóa hồ sơ công nợ
         </div>
       </div>
 
@@ -949,7 +915,6 @@ export default function FinanceBudget({
                   onUpdateSavings(firstDeposit);
                   setShowGoalModal(false);
                   toast.success("Đã tạo mục tiêu!");
-                  setTimeout(() => window.location.reload(), 500);
                 }}
                 className="w-full bg-slate-900 text-white font-bold text-sm py-3 rounded-[20px] hover:bg-slate-800 cursor-pointer transition-all"
               >

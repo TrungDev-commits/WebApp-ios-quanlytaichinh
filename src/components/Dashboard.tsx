@@ -18,13 +18,15 @@ interface DashboardProps {
   debts: Debt[];
   categories: Category[];
   onNavigateToTab: (tab: number) => void;
+  username?: string;
 }
 
 export default function Dashboard({
   transactions,
   debts,
   categories,
-  onNavigateToTab
+  onNavigateToTab,
+  username = "bạn"
 }: DashboardProps) {
 
   // Helper to format currency in Vietnamese format (divided by 1000, 1000 = 1)
@@ -153,7 +155,7 @@ export default function Dashboard({
       <div id="header-section" className="flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold text-slate-400 tracking-wider uppercase">TÀI KHOẢN CỦA TÔI</span>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">Chào Lâm Huệ Trung!</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">Chào {username}!</h1>
         </div>
       </div>
 
@@ -261,7 +263,7 @@ export default function Dashboard({
       <div className="bg-white/80 backdrop-blur-md border border-white/40 rounded-[28px] p-6 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
         <h3 className="text-sm font-bold text-slate-800 tracking-tight">Cơ Cấu Chi Tiêu Tháng Này</h3>
         
-        <div className="flex flex-col sm:flex-row items-center gap-8 mt-6">
+        <div className="flex flex-col items-center gap-6 mt-6">
           {/* SVG Donut Chart */}
           <div className="relative w-36 h-36 shrink-0">
             {totalExpenseComputed === 0 ? (
