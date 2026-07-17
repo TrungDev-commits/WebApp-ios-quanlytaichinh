@@ -37,36 +37,74 @@ export const handler: Handler = async (event) => {
     }
 
     if (event.httpMethod === 'PUT' && event.body) {
-      const { debtId, installmentIndex } = JSON.parse(event.body);
+      const { debtId, installmentIndices, partialAmounts, note, updateData } = JSON.parse(event.body);
+
+      if (updateData) {
+        const updated = await Debt.findOneAndUpdate(
+          { id: debtId } as any,
+          { $set: updateData },
+          { new: true }
+        ).lean();
+        return { statusCode: 200, headers, body: JSON.stringify(updated) };
+      }
+
+      const indices = installmentIndices || [];
+      if (indices.length === 0) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing installment indices' }) };
+      }
+
       const debt = await Debt.findOne({ id: debtId } as any);
       if (!debt) {
         return { statusCode: 404, headers, body: JSON.stringify({ error: 'Debt not found' }) };
       }
 
-      const target = debt.timeline[installmentIndex];
-      if (!target || target.completed) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Installment already completed or invalid' }) };
+      let totalPaid = 0;
+      const nowStr = new Date().toISOString().split('T')[0];
+
+      for (const idx of indices) {
+        const target = debt.installments.find((i: any) => i.index === idx);
+        if (!target || target.status === 'paid') continue;
+
+        const payAmount = partialAmounts?.[idx] ?? target.amount;
+        target.paidAmount = (target.paidAmount || 0) + payAmount;
+        target.paidDate = nowStr;
+
+        if (target.paidAmount >= target.amount) {
+          target.status = 'paid';
+          target.paidAmount = target.amount;
+        } else {
+          target.status = 'partial';
+        }
+        totalPaid += payAmount;
       }
 
-      target.completed = true;
-      debt.paid += target.amount;
+      if (totalPaid === 0) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'No payable installments selected' }) };
+      }
 
-      const isPayable = debt.type === 'payable';
+      debt.currentBalance -= totalPaid;
+      debt.paidInstallments = debt.installments.filter((i: any) => i.status === 'paid').length;
+
+      if (debt.currentBalance <= 0) {
+        debt.status = 'settled';
+        debt.currentBalance = 0;
+      }
+
+      const desc = note || `Trả nợ ${debt.name}`;
       await Transaction.create({
-        type: isPayable ? 'expense' : 'income',
-        amount: target.amount,
-        category: 'Hóa đơn',
-        date: new Date().toISOString().split('T')[0],
-        description: `Trả đợt ${installmentIndex + 1} nợ ${debt.partner}`,
+        type: 'expense',
+        amount: totalPaid,
+        category: debt.type === 'credit_card' ? 'Thẻ tín dụng' : 'Hóa đơn',
+        date: nowStr,
+        description: desc,
         wallet: 'Ngân hàng'
       });
 
-      if (isPayable) {
-        const budget = await Budget.findOne({ category: 'Hóa đơn' } as any);
-        if (budget) {
-          budget.spent += target.amount;
-          await budget.save();
-        }
+      const budgetCat = debt.type === 'credit_card' ? 'Thẻ tín dụng' : 'Hóa đơn';
+      const budget = await Budget.findOne({ category: budgetCat } as any);
+      if (budget) {
+        budget.spent += totalPaid;
+        await budget.save();
       }
 
       await debt.save();

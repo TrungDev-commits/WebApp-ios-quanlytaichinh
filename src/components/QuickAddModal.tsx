@@ -1,23 +1,9 @@
 import React, { useState, useRef } from "react";
-import { 
-  X, 
-  Coins, 
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Zap, 
-  Banknote, 
-  Tag, 
-  CreditCard, 
-  Calendar, 
-  Sparkles, 
-  Camera, 
-  Loader2,
-  RefreshCw,
-  Plus,
-  Wallet,
-  Settings2
-} from "lucide-react";
+import { Icon } from "@mdi/react";
+import {
+  mdiClose, mdiCurrencyUsd, mdiAutoFix, mdiCamera,
+  mdiLoading, mdiRefresh, mdiPlus, mdiCogOutline, mdiBank, mdiCash, mdiWalletOutline
+} from "@mdi/js";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
 import { Transaction, Category } from "../types";
@@ -31,6 +17,12 @@ interface QuickAddModalProps {
   onOpenCategoryManager: () => void;
 }
 
+const wallets = [
+  { name: "Ngân hàng", icon: mdiBank },
+  { name: "Tiền mặt", icon: mdiCash },
+  { name: "Ví điện tử", icon: mdiWalletOutline }
+];
+
 export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categories: propCategories, onOpenCategoryManager }: QuickAddModalProps) {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amountStr, setAmountStr] = useState("");
@@ -39,7 +31,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
   const [wallet, setWallet] = useState("Ngân hàng");
   const [isRecurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState<'none' | 'weekly' | 'monthly'>('none');
-  
+
   // OCR Scan state
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,16 +39,10 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
   const categories = propCategories.length > 0
     ? propCategories.sort((a, b) => a.order - b.order).map(cat => ({
         name: cat.name,
-        icon: iconMap[cat.icon] || Tag,
+        icon: iconMap[cat.icon] || iconMap['Tag'],
         color: cat.color,
       }))
     : [];
-
-  const wallets = [
-    { name: "Ngân hàng", icon: CreditCard },
-    { name: "Tiền mặt", icon: Coins },
-    { name: "Ví điện tử", icon: Wallet }
-  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,7 +158,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
                 onClick={onClose}
                 className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 cursor-pointer transition-colors"
               >
-                <X className="w-5 h-5" />
+                <Icon path={mdiClose} size={1} />
               </button>
             </div>
 
@@ -209,7 +195,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
               <div className="bg-slate-50 rounded-[24px] p-5 border border-slate-100 text-center space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">SỐ TIỀN GIAO DỊCH</label>
                 <div className="flex items-center justify-center gap-1.5">
-                  <Coins className="w-6 h-6 text-slate-400" />
+                  <Icon path={mdiCurrencyUsd} size={1.25} className="text-slate-400" />
                   <input
                     type="text"
                     required
@@ -279,7 +265,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
                     whileTap={{ scale: 0.95 }}
                     className="p-3 rounded-2xl border border-dashed border-slate-200 bg-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <Settings2 className="w-5 h-5" />
+                    <Icon path={mdiCogOutline} size={1} />
                     <span className="text-[10px] font-bold">Quản lý</span>
                   </motion.button>
                 </div>
@@ -290,7 +276,6 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ví thanh toán</label>
                 <div className="grid grid-cols-3 gap-3">
                   {wallets.map((w) => {
-                    const WIcon = w.icon;
                     const isSelected = wallet === w.name;
 
                     return (
@@ -305,7 +290,7 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
                             : "bg-white border-slate-100 text-slate-500 hover:bg-slate-50"
                         }`}
                       >
-                        <WIcon className="w-4 h-4 shrink-0" />
+                        <Icon path={w.icon} size={0.875} className="shrink-0" />
                         <span className="text-[10px] font-bold">{w.name}</span>
                       </motion.button>
                     );
@@ -317,10 +302,10 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
               <div className="bg-slate-50/50 border border-slate-100 rounded-[24px] p-4 space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-slate-900 animate-pulse" />
+                    <Icon path={mdiAutoFix} size={0.875} className="text-slate-900" />
                     <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Scan AI OCR & Tự động hóa</span>
                   </div>
-                  
+
                   {/* File Upload Hidden Field */}
                   <input
                     type="file"
@@ -329,18 +314,18 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
                     onChange={handleFileUpload}
                     className="hidden"
                   />
-                  
+
                   <motion.button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isScanning}
                     whileTap={{ scale: 0.95 }}
-                    className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all animate-pulse"
+                    className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
                   >
                     {isScanning ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Icon path={mdiLoading} size={0.75} className="animate-spin" />
                     ) : (
-                      <Camera className="w-3.5 h-3.5" />
+                      <Icon path={mdiCamera} size={0.75} />
                     )}
                     <span>Quét biên lai</span>
                   </motion.button>
@@ -417,12 +402,12 @@ export default function QuickAddModal({ isOpen, onClose, onAddTransaction, categ
               >
                 {isScanning ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <Icon path={mdiRefresh} size={0.875} className="animate-spin" />
                     <span>AI đang phân tích hóa đơn...</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="w-5 h-5" />
+                    <Icon path={mdiPlus} size={1} />
                     <span>Lưu Giao Dịch</span>
                   </>
                 )}

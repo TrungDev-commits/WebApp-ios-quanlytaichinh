@@ -16,22 +16,53 @@ export interface Budget {
   spent: number;
 }
 
-export interface DebtTimelineItem {
-  date: string;
+export interface DebtInstallment {
+  index: number;
+  dueDate: string;
   amount: number;
-  completed: boolean;
+  paidAmount: number;
+  paidDate?: string;
+  status: 'pending' | 'paid' | 'partial';
 }
 
-export interface Debt {
+export interface DebtAccount {
   id: string;
-  type: 'payable' | 'receivable'; // payable = đi vay, receivable = cho vay
-  partner: string;
-  amount: number;
-  paid: number;
-  interestRate: number; // % per month
-  dueDate: string;
-  timeline: DebtTimelineItem[];
+  type: 'installment' | 'credit_card' | 'friend';
+  name: string;
+  originalAmount: number;
+  currentBalance: number;
+  monthlyPayment: number;
+  interestRate: number;
+  paymentDay: number;
+  startDate: string;
+  maturityDate: string;
+  totalInstallments: number;
+  paidInstallments: number;
+  status: 'active' | 'settled';
+  installments: DebtInstallment[];
+  notes?: string;
 }
+
+export interface FixedExpense {
+  id: string;
+  name: string;
+  amount: number;
+  dueDay: number;
+  category: string;
+}
+
+export interface MonthlyPlan {
+  month: string;
+  income: number;
+  fixedExpenses: number;
+  debtPayments: number;
+  variableExpenses: number;
+  savings: number;
+  remaining: number;
+}
+
+// Legacy alias for backward compatibility
+export type Debt = DebtAccount;
 
 export interface SavingsGoal {
   id: string;

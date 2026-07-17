@@ -30,21 +30,31 @@ const BudgetSchema = new mongoose.Schema({
   spent: { type: Number, default: 0 }
 }, { versionKey: false });
 
-const DebtTimelineItemSchema = new mongoose.Schema({
-  date: { type: String, required: true },
+const DebtInstallmentSchema = new mongoose.Schema({
+  index: { type: Number, required: true },
+  dueDate: { type: String, required: true },
   amount: { type: Number, required: true },
-  completed: { type: Boolean, default: false }
+  paidAmount: { type: Number, default: 0 },
+  paidDate: { type: String, default: null },
+  status: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' }
 }, { _id: false });
 
 const DebtSchema = new mongoose.Schema({
   id: { type: String, default: () => 'debt-' + Math.random().toString(36).substr(2, 9) },
-  type: { type: String, enum: ['payable', 'receivable'], required: true },
-  partner: { type: String, required: true },
-  amount: { type: Number, required: true },
-  paid: { type: Number, default: 0 },
+  type: { type: String, enum: ['installment', 'credit_card', 'friend'], required: true },
+  name: { type: String, required: true },
+  originalAmount: { type: Number, required: true },
+  currentBalance: { type: Number, required: true },
+  monthlyPayment: { type: Number, required: true },
   interestRate: { type: Number, default: 0 },
-  dueDate: { type: String, required: true },
-  timeline: [DebtTimelineItemSchema]
+  paymentDay: { type: Number, default: 5 },
+  startDate: { type: String, required: true },
+  maturityDate: { type: String, required: true },
+  totalInstallments: { type: Number, required: true },
+  paidInstallments: { type: Number, default: 0 },
+  status: { type: String, enum: ['active', 'settled'], default: 'active' },
+  installments: [DebtInstallmentSchema],
+  notes: { type: String, default: '' }
 }, { versionKey: false });
 
 const SavingsGoalSchema = new mongoose.Schema({

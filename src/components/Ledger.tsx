@@ -1,15 +1,9 @@
 import React, { useState } from "react";
+import { Icon } from "@mdi/react";
 import {
-  Search,
-  SlidersHorizontal,
-  PlusCircle,
-  MinusCircle,
-  Tag,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Wallet
-} from "lucide-react";
+  mdiMagnify, mdiTune, mdiPlusCircle, mdiMinusCircleOutline, mdiTagOutline,
+  mdiDeleteOutline, mdiChevronLeft, mdiChevronRight, mdiWallet
+} from "@mdi/js";
 import { motion, AnimatePresence } from "motion/react";
 import { Transaction, Category } from "../types";
 import { iconMap } from "../lib/iconMap";
@@ -43,8 +37,6 @@ function formatVND(num: number) {
   return new Intl.NumberFormat("vi-VN").format(valueInK) + "k";
 }
 
-const dayTitles = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-
 export default function Ledger({ transactions, onDeleteTransaction, categories }: LedgerProps) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -60,22 +52,14 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
   const startDayOfWeek = firstDayOfMonth.getDay();
 
   const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
+    else { setCurrentMonth(currentMonth - 1); }
     setSelectedDate(null);
   };
 
   const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
+    else { setCurrentMonth(currentMonth + 1); }
     setSelectedDate(null);
   };
 
@@ -121,48 +105,31 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
 
   return (
     <div className="space-y-4 pb-40">
-      {/* HEADER */}
       <div>
         <span className="text-xs font-semibold text-slate-400 tracking-wider uppercase">LỊCH SỬ GIAO DỊCH</span>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">Sổ Cái Nhật Ký</h1>
       </div>
 
-      {/* SEARCH */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm kiếm giao dịch..."
-          className="w-full pl-11 pr-4 py-3.5 bg-white/80 backdrop-blur-sm border border-slate-100 rounded-[22px] text-[16px] focus:outline-none focus:ring-2 focus:ring-slate-900/10 placeholder-slate-400 font-medium transition-all shadow-[0_4px_16px_rgba(0,0,0,0.01)]"
-        />
+        <Icon path={mdiMagnify} size={1} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Tìm kiếm giao dịch..."
+          className="w-full pl-11 pr-4 py-3.5 bg-white/80 backdrop-blur-sm border border-slate-100 rounded-[22px] text-[16px] focus:outline-none focus:ring-2 focus:ring-slate-900/10 placeholder-slate-400 font-medium transition-all shadow-[0_4px_16px_rgba(0,0,0,0.01)]" />
       </div>
 
-      {/* MONTH NAVIGATION */}
       <div className="flex items-center justify-between bg-white/80 border border-slate-100 rounded-[24px] px-5 py-3 shadow-sm">
-        <button
-          onClick={prevMonth}
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer transition-all"
-        >
-          <ChevronLeft className="w-5 h-5" />
+        <button onClick={prevMonth} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer transition-all">
+          <Icon path={mdiChevronLeft} size={1.25} />
         </button>
         <span className="text-sm font-bold text-slate-800">{monthName}</span>
-        <button
-          onClick={nextMonth}
-          className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer transition-all"
-        >
-          <ChevronRight className="w-5 h-5" />
+        <button onClick={nextMonth} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer transition-all">
+          <Icon path={mdiChevronRight} size={1.25} />
         </button>
       </div>
 
-      {/* CALENDAR GRID */}
       <div className="bg-white/80 border border-slate-100 rounded-[24px] p-3 shadow-sm">
         <div className="grid grid-cols-7 mb-1">
           {dayNames.map(d => (
-            <div key={d} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider py-1.5">
-              {d}
-            </div>
+            <div key={d} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider py-1.5">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -177,84 +144,38 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
             const isSelected = dateStr === selectedDate;
 
             return (
-              <button
-                key={day}
-                onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                className={`aspect-square p-1 rounded-[14px] flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-slate-900 shadow-[0_4px_12px_rgba(15,23,42,0.15)]'
-                    : isToday
-                      ? 'bg-slate-100 hover:bg-slate-200'
-                      : 'hover:bg-slate-50'
-                }`}
-              >
-                <span className={`text-[13px] font-bold leading-tight ${
-                  isSelected ? 'text-white' : isToday ? 'text-slate-900' : 'text-slate-700'
-                }`}>
-                  {day}
-                </span>
-                {income > 0 && (
-                  <span className={`text-[8px] font-bold leading-tight ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}>
-                    +{formatCurrency(income)}
-                  </span>
-                )}
-                {expense > 0 && (
-                  <span className={`text-[8px] font-bold leading-tight ${isSelected ? 'text-rose-300' : 'text-rose-500'}`}>
-                    -{formatCurrency(expense)}
-                  </span>
-                )}
+              <button key={day} onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                className={`aspect-square p-1 rounded-[14px] flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isSelected ? 'bg-slate-900 shadow-[0_4px_12px_rgba(15,23,42,0.15)]' : isToday ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-slate-50'}`}>
+                <span className={`text-[13px] font-bold leading-tight ${isSelected ? 'text-white' : isToday ? 'text-slate-900' : 'text-slate-700'}`}>{day}</span>
+                {income > 0 && <span className={`text-[8px] font-bold leading-tight ${isSelected ? 'text-emerald-300' : 'text-emerald-600'}`}>+{formatCurrency(income)}</span>}
+                {expense > 0 && <span className={`text-[8px] font-bold leading-tight ${isSelected ? 'text-rose-300' : 'text-rose-500'}`}>-{formatCurrency(expense)}</span>}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* FILTER CHIPS (visible when day selected) */}
       {selectedDate && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 select-none">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              filter === "all"
-                ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]"
-                : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+          <button onClick={() => setFilter("all")} className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${filter === "all" ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]" : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"}`}>
+            <Icon path={mdiTune} size={0.875} />
             <span>Tất cả</span>
           </button>
-          <button
-            onClick={() => setFilter("income")}
-            className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              filter === "income"
-                ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]"
-                : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-emerald-500" />
+          <button onClick={() => setFilter("income")} className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${filter === "income" ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]" : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"}`}>
+            <Icon path={mdiPlusCircle} size={0.875} className="text-emerald-500" />
             <span>Khoản thu</span>
           </button>
-          <button
-            onClick={() => setFilter("expense")}
-            className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              filter === "expense"
-                ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]"
-                : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <MinusCircle className="w-3.5 h-3.5 text-rose-500" />
+          <button onClick={() => setFilter("expense")} className={`px-4 py-2.5 rounded-[20px] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${filter === "expense" ? "bg-slate-900 text-white shadow-[0_6px_16px_rgba(15,23,42,0.15)]" : "bg-white border border-slate-100 text-slate-500 hover:bg-slate-50"}`}>
+            <Icon path={mdiMinusCircleOutline} size={0.875} className="text-rose-500" />
             <span>Khoản chi</span>
           </button>
         </div>
       )}
 
-      {/* SELECTED DAY TRANSACTIONS */}
       {selectedDate && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              {getDateLabel(selectedDate)}
-            </h3>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{getDateLabel(selectedDate)}</h3>
             <div className="flex items-center gap-2 text-[10px] font-bold">
               {selectedIncome > 0 && <span className="text-emerald-600">+{formatVND(selectedIncome)}</span>}
               {selectedExpense > 0 && <span className="text-rose-500">-{formatVND(selectedExpense)}</span>}
@@ -263,7 +184,7 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
 
           {selectedTxs.length === 0 ? (
             <div className="bg-white/60 border border-slate-100 rounded-[28px] p-8 text-center text-slate-400">
-              <Tag className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+              <Icon path={mdiTagOutline} size={2} className="mx-auto text-slate-300 mb-2" />
               <p className="text-sm font-semibold">Không có giao dịch nào</p>
             </div>
           ) : (
@@ -273,21 +194,15 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
                   const getCategoryMeta = (catName: string) => {
                     const cat = categories.find(c => c.name === catName);
                     const colorMap: Record<string, string> = {
-                      red: 'bg-red-100/80 text-red-700',
-                      amber: 'bg-amber-100/80 text-amber-700',
-                      blue: 'bg-blue-100/80 text-blue-700',
-                      teal: 'bg-teal-100/80 text-teal-700',
-                      emerald: 'bg-emerald-100/80 text-emerald-700',
-                      slate: 'bg-slate-100/80 text-slate-700',
-                      indigo: 'bg-indigo-100/80 text-indigo-700',
-                      rose: 'bg-rose-100/80 text-rose-700',
-                      purple: 'bg-purple-100/80 text-purple-700',
+                      red: 'bg-red-100/80 text-red-700', amber: 'bg-amber-100/80 text-amber-700', blue: 'bg-blue-100/80 text-blue-700',
+                      teal: 'bg-teal-100/80 text-teal-700', emerald: 'bg-emerald-100/80 text-emerald-700', slate: 'bg-slate-100/80 text-slate-700',
+                      indigo: 'bg-indigo-100/80 text-indigo-700', rose: 'bg-rose-100/80 text-rose-700', purple: 'bg-purple-100/80 text-purple-700',
                       orange: 'bg-orange-100/80 text-orange-700',
                     };
                     const iconKey = cat?.icon || 'Tag';
                     const color = cat?.color || 'slate';
                     const bgColor = colorMap[color] || colorMap.slate;
-                    const IconComp = iconMap[iconKey] || Tag;
+                    const IconComp = iconMap[iconKey];
                     return { icon: IconComp, bg: bgColor.split(' ')[0], text: bgColor.split(' ')[1] };
                   };
                   const { icon: CatIcon, bg, text } = getCategoryMeta(transaction.category);
@@ -297,26 +212,15 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
                   return (
                     <div key={transaction.id} className="relative overflow-hidden">
                       <div className="absolute inset-y-0 right-0 w-20 bg-rose-500 flex items-center justify-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteTransaction(transaction.id);
-                            setSwipedId(null);
-                          }}
-                          className="w-full h-full text-white flex flex-col items-center justify-center gap-1 hover:bg-rose-600 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-5 h-5" />
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteTransaction(transaction.id); setSwipedId(null); }}
+                          className="w-full h-full text-white flex flex-col items-center justify-center gap-1 hover:bg-rose-600 transition-colors cursor-pointer">
+                          <Icon path={mdiDeleteOutline} size={1.25} />
                           <span className="text-[10px] font-bold">Xóa</span>
                         </button>
                       </div>
                       <motion.div
-                        drag="x"
-                        dragConstraints={{ left: -80, right: 0 }}
-                        dragElastic={0.1}
-                        onDragEnd={(_, info) => {
-                          if (info.offset.x < -40) setSwipedId(transaction.id);
-                          else if (info.offset.x > 30) setSwipedId(null);
-                        }}
+                        drag="x" dragConstraints={{ left: -80, right: 0 }} dragElastic={0.1}
+                        onDragEnd={(_, info) => { if (info.offset.x < -40) setSwipedId(transaction.id); else if (info.offset.x > 30) setSwipedId(null); }}
                         animate={{ x: isSwiped ? -80 : 0 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         onClick={() => handleItemClick(transaction.id)}
@@ -324,18 +228,16 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
                       >
                         <div className="flex items-center gap-3.5">
                           <div className={`w-11 h-11 rounded-full ${bg} ${text} flex items-center justify-center shrink-0`}>
-                            <CatIcon className="w-5 h-5" />
+                            {CatIcon && <CatIcon className="w-5 h-5" />}
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5">
                               <h4 className="text-xs font-bold text-slate-800">{transaction.description}</h4>
-                              {transaction.isRecurring && (
-                                <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded-full font-bold">Định kỳ</span>
-                              )}
+                              {transaction.isRecurring && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.2 rounded-full font-bold">Định kỳ</span>}
                             </div>
                             <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
                               <span className="flex items-center gap-0.5">
-                                <Wallet className="w-3 h-3" />
+                                <Icon path={mdiWallet} size={0.75} />
                                 {transaction.wallet}
                               </span>
                             </div>
@@ -345,9 +247,7 @@ export default function Ledger({ transactions, onDeleteTransaction, categories }
                           <span className={`text-xs font-extrabold ${isIncome ? "text-emerald-600" : "text-rose-500"}`}>
                             {isIncome ? "+" : "-"}{formatVND(transaction.amount)}
                           </span>
-                          <span className="block text-[9px] text-slate-400 font-medium mt-0.5">
-                            {transaction.category}
-                          </span>
+                          <span className="block text-[9px] text-slate-400 font-medium mt-0.5">{transaction.category}</span>
                         </div>
                       </motion.div>
                     </div>

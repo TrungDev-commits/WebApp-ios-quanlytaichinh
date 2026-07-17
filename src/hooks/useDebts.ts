@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Debt } from '../types';
+import { DebtAccount } from '../types';
 import { api } from '../api/client';
 
 export function useDebts() {
-  const [debts, setDebts] = useState<Debt[]>([]);
+  const [debts, setDebts] = useState<DebtAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +22,7 @@ export function useDebts() {
 
   useEffect(() => { fetchDebts(); }, [fetchDebts]);
 
-  const addDebt = async (data: Omit<Debt, 'id'>) => {
+  const addDebt = async (data: Omit<DebtAccount, 'id'>) => {
     const newDebt = await api.debts.create(data);
     setDebts(prev => [...prev, newDebt]);
     return newDebt;
@@ -33,10 +33,15 @@ export function useDebts() {
     setDebts(prev => prev.filter(d => d.id !== id));
   };
 
-  const payDebtInstallment = async (debtId: string, installmentIndex: number) => {
-    const updated = await api.debts.payInstallment(debtId, installmentIndex);
+  const payInstallments = async (debtId: string, installmentIndices: number[], partialAmounts?: Record<number, number>, note?: string) => {
+    const updated = await api.debts.payInstallments(debtId, installmentIndices, partialAmounts, note);
     setDebts(prev => prev.map(d => d.id === debtId ? updated : d));
   };
 
-  return { debts, loading, error, addDebt, deleteDebt, payDebtInstallment, refetch: fetchDebts };
+  const updateDebt = async (debtId: string, updateData: Partial<DebtAccount>) => {
+    const updated = await api.debts.update(debtId, updateData);
+    setDebts(prev => prev.map(d => d.id === debtId ? updated : d));
+  };
+
+  return { debts, loading, error, addDebt, deleteDebt, payInstallments, updateDebt, refetch: fetchDebts };
 }

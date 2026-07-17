@@ -29,8 +29,10 @@ export const api = {
     list: () => request(`${BASE}/debts`),
     create: (data: any) => request(`${BASE}/debts`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) => request(`${BASE}/debts?id=${id}`, { method: 'DELETE' }),
-    payInstallment: (debtId: string, installmentIndex: number) =>
-      request(`${BASE}/debts`, { method: 'PUT', body: JSON.stringify({ debtId, installmentIndex }) }),
+    payInstallments: (debtId: string, installmentIndices: number[], partialAmounts?: Record<number, number>, note?: string) =>
+      request(`${BASE}/debts`, { method: 'PUT', body: JSON.stringify({ debtId, installmentIndices, partialAmounts, note }) }),
+    update: (debtId: string, updateData: any) =>
+      request(`${BASE}/debts`, { method: 'PUT', body: JSON.stringify({ debtId, updateData }) }),
   },
 
   savings: {

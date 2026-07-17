@@ -1,18 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { 
-  Sparkles, 
-  Send, 
-  TrendingUp, 
-  Scale, 
-  Target, 
-  Loader2, 
-  Bot, 
-  User, 
-  Trash2
-} from "lucide-react";
+import { Icon } from "@mdi/react";
+import { mdiAutoFix, mdiSend, mdiTrendingUp, mdiScale, mdiTarget, mdiLoading, mdiRobot, mdiAccount, mdiDeleteOutline } from "@mdi/js";
 import Markdown from "react-markdown";
-import { motion, AnimatePresence } from "motion/react";
-import { Transaction, Budget, Debt, SavingsGoal, Message } from "../types";
+import { motion } from "motion/react";
+import { Transaction, Budget, DebtAccount, SavingsGoal, Message } from "../types";
+type Debt = DebtAccount;
 
 interface AICovisorProps {
   transactions: Transaction[];
@@ -34,9 +26,9 @@ function formatTime(ts: string) {
 }
 
 const quickChips = [
-  { label: "Phân tích nợ", icon: TrendingUp, promptType: 'debt' as const, color: "text-rose-500" },
-  { label: "Dự báo dòng tiền", icon: Scale, promptType: 'balance' as const, color: "text-amber-500" },
-  { label: "Mẹo tiết kiệm", icon: Target, promptType: 'savings' as const, color: "text-indigo-500" },
+  { label: "Phân tích nợ", icon: mdiTrendingUp, promptType: 'debt' as const, color: "text-rose-500" },
+  { label: "Dự báo dòng tiền", icon: mdiScale, promptType: 'balance' as const, color: "text-amber-500" },
+  { label: "Mẹo tiết kiệm", icon: mdiTarget, promptType: 'savings' as const, color: "text-indigo-500" },
 ];
 
 export default function AICovisor({ transactions, budgets, debts, savings }: AICovisorProps) {
@@ -138,7 +130,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
       <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shadow-sm">
-            <Sparkles className="w-5 h-5 text-white" />
+            <Icon path={mdiAutoFix} size={1.25} className="text-white" />
           </div>
           <div>
             <h1 className="text-[15px] font-bold text-slate-900">Gemini Co-Visor</h1>
@@ -146,7 +138,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
           </div>
         </div>
         <button onClick={clearChat} className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors" title="Xoá chat">
-          <Trash2 className="w-4 h-4" />
+          <Icon path={mdiDeleteOutline} size={1} />
         </button>
       </div>
 
@@ -176,16 +168,12 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
               >
                 {isGemini && (
                   <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center shrink-0 mb-1">
-                    <Bot className="w-3.5 h-3.5 text-white" />
+                    <Icon path={mdiRobot} size={0.875} className="text-white" />
                   </div>
                 )}
 
                 <div className={`max-w-[78%] space-y-0.5 ${!isGemini ? "items-end" : ""}`}>
-                  <div className={`px-3.5 py-2.5 text-[14px] leading-relaxed ${
-                    isGemini
-                      ? "bg-[#E9E9EB] text-slate-800 rounded-[20px] rounded-bl-[4px]"
-                      : "bg-[#007AFF] text-white rounded-[20px] rounded-br-[4px]"
-                  }`}>
+                  <div className={`px-3.5 py-2.5 text-[14px] leading-relaxed ${isGemini ? "bg-[#E9E9EB] text-slate-800 rounded-[20px] rounded-bl-[4px]" : "bg-[#007AFF] text-white rounded-[20px] rounded-br-[4px]"}`}>
                     <div className={`markdown-body prose prose-sm max-w-none ${isGemini ? "prose-slate" : "prose-invert"}`}>
                       <Markdown>{msg.text}</Markdown>
                     </div>
@@ -197,7 +185,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
 
                 {!isGemini && (
                   <div className="w-7 h-7 rounded-full bg-[#007AFF]/10 flex items-center justify-center shrink-0 mb-1">
-                    <User className="w-3.5 h-3.5 text-[#007AFF]" />
+                    <Icon path={mdiAccount} size={0.875} className="text-[#007AFF]" />
                   </div>
                 )}
               </motion.div>
@@ -211,7 +199,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
               className="flex items-end gap-2 px-1 mb-2"
             >
               <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center shrink-0 mb-1">
-                <Bot className="w-3.5 h-3.5 text-white" />
+                <Icon path={mdiRobot} size={0.875} className="text-white" />
               </div>
               <div className="bg-[#E9E9EB] px-4 py-3 rounded-[20px] rounded-bl-[4px] flex items-center gap-1.5">
                 <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -227,7 +215,6 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
       <div className="pt-2 border-t border-slate-100 space-y-2.5 shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 select-none no-swipe">
           {quickChips.map((chip) => {
-            const Icon = chip.icon;
             return (
               <button
                 key={chip.label}
@@ -235,7 +222,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
                 disabled={isLoading}
                 className="px-3.5 py-2 bg-white border border-slate-100 hover:bg-slate-50 rounded-full text-[11px] font-bold flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm disabled:opacity-50 transition-all"
               >
-                <Icon className={`w-3.5 h-3.5 ${chip.color}`} />
+                <Icon path={chip.icon} size={0.875} className={chip.color} />
                 <span className="text-slate-700">{chip.label}</span>
               </button>
             );
@@ -256,7 +243,7 @@ export default function AICovisor({ transactions, budgets, debts, savings }: AIC
             disabled={isLoading || !inputMessage.trim()}
             className="p-3 bg-[#007AFF] text-white rounded-full hover:bg-[#0066D6] disabled:opacity-40 disabled:hover:bg-[#007AFF] cursor-pointer transition-all shadow-sm flex items-center justify-center"
           >
-            <Send className="w-4 h-4" />
+            <Icon path={mdiSend} size={1} />
           </button>
         </form>
       </div>
