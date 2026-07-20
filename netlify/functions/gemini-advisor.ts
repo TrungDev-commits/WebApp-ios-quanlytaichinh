@@ -109,8 +109,10 @@ Bối cảnh tài chính:
 Trả lời bằng tiếng Việt, dùng số liệu cụ thể, dễ áp dụng. Nếu câu hỏi về chiến lược nợ, hãy tính toán và so sánh các phương án.`;
     }
 
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model,
       contents: userPrompt,
       config: {
         systemInstruction: "Bạn là Gemini Co-Visor, cố vấn tài chính cá nhân cao cấp. Luôn trả lời bằng tiếng Việt, dùng Markdown, gạch đầu dòng, số liệu cụ thể. Tư vấn thực tế, dễ hiểu, có tính ứng dụng ngay.",
@@ -126,9 +128,16 @@ Trả lời bằng tiếng Việt, dùng số liệu cụ thể, dễ áp dụng
     return { statusCode: 200, headers, body: JSON.stringify({ text }) };
   } catch (error: any) {
     console.error('gemini-advisor error:', error);
-    const message = error.message?.includes('API_KEY')
-      ? 'GEMINI_API_KEY không hợp lệ hoặc đã hết hạn. Vào https://aistudio.google.com/apikey lấy key mới (miễn phí).'
-      : error.message;
+    const errMsg = error.message || '';
+    const detail = error.cause?.message || error.statusText || '';
+    let message: string;
+    if (errMsg.includes('API_KEY') || errMsg.includes('API key')) {
+      message = 'GEMINI_API_KEY không hợp lệ hoặc đã hết hạn. Vào https://aistudio.google.com/apikey lấy key mới (miễn phí).';
+    } else if (errMsg.includes('quota') || errMsg.includes('rate') || errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+      message = `Đã hết quota API (model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}). Đổi model qua env var GEMINI_MODEL hoặc đợi làm mới quota.`;
+    } else {
+      message = `${errMsg}${detail ? ` (${detail})` : ''}`;
+    }
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Lỗi kết nối AI', message }) };
   }
 };

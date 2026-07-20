@@ -7,6 +7,7 @@
 | `MONGODB_URI` | ✅ | Chuỗi kết nối MongoDB Atlas | `mongodb+srv://user:pass@cluster.xxxxx.mongodb.net/ios-finance` |
 | `GEMINI_API_KEY` | ✅ | Google Gemini API Key | `AIzaSyD...` |
 | `JWT_SECRET` | ✅ | Chuỗi bí mật cho JWT | `chuoi-bi-mat-bat-ky-2026` |
+| `GEMINI_MODEL` | ❌ | Tên model Gemini (mặc định `gemini-2.5-flash`) | `gemini-2.5-flash`, `gemini-2.0-flash` |
 
 ### Biến dành cho Discord Bot (Phase 3)
 

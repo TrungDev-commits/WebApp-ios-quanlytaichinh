@@ -67,8 +67,10 @@ export const handler: Handler = async (event) => {
     const prompt = `Tạo lịch thanh toán ${installments} kỳ, mỗi kỳ ${amtPerPeriod} VNĐ, bắt đầu từ tháng ${startDate}, thanh toán vào ngày ${paymentDueDay} hàng tháng.
 Trả về mảng JSON: [{"date":"YYYY-MM-DD","amount":${amtPerPeriod},"completed":false}]. Chỉ trả về JSON, không markdown.`;
 
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model,
       contents: prompt,
       config: {
         systemInstruction: 'Chỉ trả về mảng JSON thuần, không text thêm.',

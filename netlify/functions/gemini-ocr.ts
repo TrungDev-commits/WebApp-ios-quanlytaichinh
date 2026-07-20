@@ -49,8 +49,10 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Định dạng ảnh không hợp lệ' }) };
     }
 
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model,
       contents: [
         { inlineData: { mimeType: matches[1], data: matches[2] } },
         { text: 'Phân tích hóa đơn này, trích xuất: tổng tiền (amount), danh mục (category: Ăn uống/Di chuyển/Mua sắm/Hóa đơn/Khác), mô tả ngắn (description). Chỉ trả về JSON.' }
