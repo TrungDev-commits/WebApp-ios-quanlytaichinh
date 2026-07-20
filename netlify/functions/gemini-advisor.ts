@@ -29,12 +29,12 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    if (!apiKey.startsWith('AIza')) {
+    if (!apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
       return {
         statusCode: 400, headers,
         body: JSON.stringify({
           error: 'Invalid API Key',
-          message: 'API key không đúng định dạng. Key Google AI Studio bắt đầu bằng "AIza...". Vào https://aistudio.google.com/apikey để lấy key miễn phí.'
+          message: 'API key không đúng định dạng. Vào https://aistudio.google.com/apikey để lấy key miễn phí.'
         })
       };
     }
