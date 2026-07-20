@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Icon } from "@mdi/react";
 import {
   mdiWallet, mdiTrendingUp, mdiTrendingDown, mdiArrowDownBold, mdiArrowUpBold,
   mdiAlertCircleOutline, mdiChartTimelineVariant, mdiChevronRight, mdiShieldAlertOutline,
-  mdiCheckCircleOutline
+  mdiCheckCircleOutline, mdiChartLine, mdiChartAreaspline, mdiChartBar
 } from "@mdi/js";
 import { Transaction, DebtAccount, Category } from "../types";
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 type Debt = DebtAccount;
 
 interface DashboardProps {
@@ -37,15 +38,19 @@ export default function Dashboard({
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalPayables = debts
+  const totalPayablesMonthly = debts
+    .filter((d) => d.status === 'active')
+    .reduce((sum, d) => sum + d.monthlyPayment, 0);
+
+  const totalDebtBalance = debts
     .filter((d) => d.status === 'active')
     .reduce((sum, d) => sum + d.currentBalance, 0);
 
   const totalReceivables = 0;
 
-  const availableCashflow = (totalReceivables + totalIncome) - (totalPayables + totalExpense);
+  const availableCashflow = (totalReceivables + totalIncome) - (totalPayablesMonthly + totalExpense);
 
-  const netDebt = totalPayables - totalReceivables;
+  const netDebt = totalDebtBalance - totalReceivables;
 
   const isPositiveTrend = totalIncome >= totalExpense;
   const trendPercentage = totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100) : 0;
@@ -119,6 +124,79 @@ export default function Dashboard({
       };
     });
 
+  const [trendRange, setTrendRange] = useState<'7d' | '30d' | '12m'>('30d');
+  const [chartView, setChartView] = useState<'trend' | 'networth'>('trend');
+
+  const now = new Date();
+  const trendData = useMemo(() => {
+    const filtered = transactions.filter(t => {
+      const d = new Date(t.date);
+      const diff = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
+      if (trendRange === '7d') return diff <= 7;
+      if (trendRange === '30d') return diff <= 30;
+      const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+      return d >= yearAgo;
+    });
+
+    const daysAgo = trendRange === '7d' ? 7 : trendRange === '30d' ? 30 : 365;
+    const map: Record<string, { date: string; income: number; expense: number }> = {};
+    for (let i = daysAgo - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      map[key] = { date: key, income: 0, expense: 0 };
+    }
+    filtered.forEach(t => {
+      if (map[t.date]) {
+        if (t.type === 'income') map[t.date].income += t.amount;
+        else map[t.date].expense += t.amount;
+      }
+    });
+    return Object.values(map);
+  }, [transactions, trendRange]);
+
+  const netWorthData = useMemo(() => {
+    const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+    let running = 0;
+    const map: Record<string, { date: string; netWorth: number }> = {};
+    sorted.forEach(t => {
+      const key = t.date;
+      if (!map[key]) map[key] = { date: key, netWorth: running };
+      running += t.type === 'income' ? t.amount : -t.amount;
+      map[key].netWorth = running;
+    });
+    return Object.values(map);
+  }, [transactions]);
+
+  const topCategories = useMemo(() => {
+    return Object.entries(categorySpentMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [transactions, categories]);
+
+  const formatChartDate = (val: string) => {
+    if (trendRange === '12m') {
+      const d = new Date(val + 'T00:00:00');
+      return d.toLocaleDateString('vi-VN', { month: 'short' });
+    }
+    const d = new Date(val + 'T00:00:00');
+    return d.toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' });
+  };
+
+  const totalIncomeForecast = transactions
+    .filter(t => t.type === 'income' && t.isRecurring)
+    .reduce((s, t) => s + t.amount, 0);
+  const avgIncome = transactions.filter(t => t.type === 'income').length > 0
+    ? Math.round(transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) / Math.max(1, new Set(transactions.filter(t => t.type === 'income').map(t => t.date.slice(0, 7))).size))
+    : 0;
+  const incomeThisMonth = transactions
+    .filter(t => t.type === 'income' && t.date.startsWith(now.toISOString().slice(0, 7)))
+    .reduce((s, t) => s + t.amount, 0);
+  const remainingDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+  const daysPassed = now.getDate();
+  const projectedIncome = incomeThisMonth + (remainingDaysInMonth > 0 ? Math.round((incomeThisMonth / daysPassed) * remainingDaysInMonth) : 0);
+  const budgetRemaining = 0; // placeholder
+
   const urgentDebts = debts
     .filter(d => d.currentBalance > 0 && d.installments.some(i => i.status === 'pending'))
     .sort((a, b) => {
@@ -171,9 +249,9 @@ export default function Dashboard({
           <div>
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
               <Icon path={mdiArrowUpBold} size={0.75} className="text-rose-500" />
-              Nợ trả (-)
+              Trả nợ tháng (-)
             </span>
-            <span className="text-xs font-extrabold text-rose-500 block mt-0.5">{formatVND(totalPayables)}</span>
+            <span className="text-xs font-extrabold text-rose-500 block mt-0.5">{formatVND(totalPayablesMonthly)}</span>
           </div>
         </div>
       </div>
@@ -200,6 +278,78 @@ export default function Dashboard({
         </div>
       </div>
 
+      <div id="charts-section" className="bg-white/80 backdrop-blur-md border border-white/40 rounded-[28px] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setChartView('trend')}
+              className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
+                chartView === 'trend' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'
+              }`}>
+              <Icon path={mdiChartLine} size={0.667} />Xu hướng
+            </button>
+            <button onClick={() => setChartView('networth')}
+              className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all cursor-pointer flex items-center gap-1 ${
+                chartView !== 'trend' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'
+              }`}>
+              <Icon path={mdiChartAreaspline} size={0.667} />Tài sản
+            </button>
+          </div>
+          {chartView === 'trend' && (
+            <div className="flex items-center gap-1 bg-slate-50 rounded-full p-0.5">
+              {(['7d', '30d', '12m'] as const).map(r => (
+                <button key={r} onClick={() => setTrendRange(r)}
+                  className={`text-[9px] font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
+                    trendRange === r ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}>
+                  {r === '7d' ? '7 ngày' : r === '30d' ? '30 ngày' : '12 tháng'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {chartView === 'trend' ? (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => Math.round(v / 1000) + 'k'} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', fontSize: 11 }}
+                  formatter={(value: number, name: string) => [new Intl.NumberFormat('vi-VN').format(value) + 'đ', name === 'income' ? 'Thu nhập' : 'Chi tiêu']}
+                  labelFormatter={(label: string) => new Date(label + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                />
+                <Line type="monotone" dataKey="income" stroke="#059669" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#059669' }} />
+                <Line type="monotone" dataKey="expense" stroke="#e11d48" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#e11d48' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={netWorthData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="date" tickFormatter={(val: string) => new Date(val + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'short' })} tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => Math.round(v / 1000) + 'k'} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', fontSize: 11 }}
+                  formatter={(value: number) => [new Intl.NumberFormat('vi-VN').format(value) + 'đ', 'Tài sản ròng']}
+                  labelFormatter={(label: string) => new Date(label + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                />
+                <defs>
+                  <linearGradient id="netWorthGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="netWorth" stroke="#0ea5e9" strokeWidth={2.5} fill="url(#netWorthGradient)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
       <div id="health-diagnostics-bar">
         {netDebt <= 0 ? (
           <div className="bg-emerald-50 border border-emerald-100 rounded-[24px] p-4 flex items-start gap-3">
@@ -220,8 +370,60 @@ export default function Dashboard({
         )}
       </div>
 
+      <div id="cashflow-forecast-card" className="bg-white/80 backdrop-blur-md border border-white/40 rounded-[28px] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight">Dự Báo Dòng Tiền</h3>
+          <span className="text-[10px] font-bold text-slate-400">{new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="bg-slate-50 rounded-2xl p-3">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Thu nhập</span>
+            <span className="text-xs font-extrabold text-emerald-600 mt-0.5 block">{formatVND(incomeThisMonth)}</span>
+            <span className="text-[9px] text-slate-400 font-medium">Dự kiến: {formatVND(projectedIncome)}</span>
+          </div>
+          <div className="bg-slate-50 rounded-2xl p-3">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Đã chi</span>
+            <span className="text-xs font-extrabold text-rose-600 mt-0.5 block">{formatVND(totalExpense)}</span>
+            <span className="text-[9px] text-slate-400 font-medium">Trả nợ: {formatVND(totalPayablesMonthly)}</span>
+          </div>
+          <div className="bg-slate-50 rounded-2xl p-3">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Dự báo</span>
+            <span className={`text-xs font-extrabold mt-0.5 block ${projectedIncome - totalExpense - totalPayablesMonthly >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {formatVND(projectedIncome - totalExpense - totalPayablesMonthly)}
+            </span>
+            <span className="text-[9px] text-slate-400 font-medium">Cuối tháng</span>
+          </div>
+        </div>
+        {projectedIncome - totalExpense - totalPayablesMonthly < 0 && (
+          <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3 flex items-center gap-2">
+            <Icon path={mdiAlertCircleOutline} size={0.75} className="text-rose-500 shrink-0" />
+            <span className="text-[10px] font-bold text-rose-600">Dự báo âm. Cần cắt giảm chi tiêu hoặc tăng thu nhập.</span>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white/80 backdrop-blur-md border border-white/40 rounded-[28px] p-6 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
-        <h3 className="text-sm font-bold text-slate-800 tracking-tight">Cơ Cấu Chi Tiêu Tháng Này</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight">Cơ Cấu Chi Tiêu Tháng Này</h3>
+          <button onClick={() => setChartView(chartView === 'trend' ? 'networth' : 'trend')}
+            className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 cursor-pointer">
+            <Icon path={mdiChartBar} size={0.667} />
+          </button>
+        </div>
+        <div className="h-32 mb-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={topCategories} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => Math.round(v / 1000) + 'k'} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#475569', fontWeight: 600 }} axisLine={false} tickLine={false} width={70} />
+              <Tooltip
+                contentStyle={{ borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', fontSize: 11 }}
+                formatter={(value: number) => [new Intl.NumberFormat('vi-VN').format(value) + 'đ', 'Chi tiêu']}
+              />
+              <Bar dataKey="value" fill="#0ea5e9" radius={[0, 6, 6, 0]} barSize={16} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
         <div className="flex flex-col items-center gap-6 mt-6">
           <div className="relative w-36 h-36 shrink-0">
