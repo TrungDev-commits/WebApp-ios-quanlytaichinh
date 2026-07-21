@@ -5,9 +5,10 @@
 | Variable | Bắt buộc | Mô tả | Ví dụ |
 |----------|----------|-------|-------|
 | `MONGODB_URI` | ✅ | Chuỗi kết nối MongoDB Atlas | `mongodb+srv://user:pass@cluster.xxxxx.mongodb.net/ios-finance` |
-| `GEMINI_API_KEY` | ✅ | Google Gemini API Key | `AIzaSyD...` |
+| `GEMINI_API_KEY` | ✅ | API Key cho OpenAI-compatible endpoint | `sk-or-...` hoặc `freellmapi-...` |
+| `GEMINI_API_BASE_URL` | ❌ | Base URL (mặc định `https://openrouter.ai/api/v1`) | `https://openrouter.ai/api/v1` hoặc `http://localhost:0801/v1` |
+| `GEMINI_MODEL` | ❌ | Tên model (mặc định `google/gemini-2.5-flash`) | `google/gemini-2.5-flash`, `gemini-3.5-flash` |
 | `JWT_SECRET` | ✅ | Chuỗi bí mật cho JWT | `chuoi-bi-mat-bat-ky-2026` |
-| `GEMINI_MODEL` | ❌ | Tên model Gemini (mặc định `gemini-2.5-flash`) | `gemini-2.5-flash`, `gemini-2.0-flash` |
 
 ### Biến dành cho Discord Bot (Phase 3)
 
